@@ -87,7 +87,37 @@ It does not establish collision avoidance or object placement. The board-cell
 planner and object observer remain separate integration work. Run this script
 only against the simulation launched by the smoke test.
 
-## Acceptance checks for the real bridge
+## MoveIt planning integration
+
+The additional `ur5e_moveit.launch.py` starts OMPL planning with the official
+UR5e URDF, UR semantic groups and kinematics configuration. It exposes planning
+services; motion execution is sent through `robotlab.ros2_executor` so the
+measured-start safety gate and final joint observation are retained.
+
+```bash
+sudo apt-get install ros-humble-ur-moveit-config
+source /opt/ros/humble/setup.bash
+cd simulation/ros2_ws
+colcon build --symlink-install
+cd ../..
+bash simulation/ros2_ws/scripts/moveit_smoke_test.sh
+```
+
+The test loads table and board collision boxes from the Gazebo SDF, transforms
+them by the simulator's 0.75 m robot-base height, plans a shoulder-pan movement
+and return, and verifies both executed joint targets. It then inserts an
+enclosing obstacle, requires contact evidence against that obstacle from
+MoveIt's state-validity service, and requires planning rejection. JSONL
+evidence is written to `artifacts/moveit-motion.jsonl`.
+
+This checks static-scene joint-space planning. It does not yet test a Cartesian
+board placement, gripper contact, a moving obstacle, or webcam integration.
+Planning uses an explicitly measured start state and wall-clock service
+timeouts; a shared simulation clock and a live scene sensor remain integration
+work. The installed Humble MoveIt process has also shown a shutdown crash;
+the test terminates its process group but does not claim clean MoveIt shutdown.
+
+## Remaining acceptance checks
 
 1. `joint_state_broadcaster` reports all six UR5e joints.
 2. MoveIt plans a collision-free approach, descend, retract trajectory for a

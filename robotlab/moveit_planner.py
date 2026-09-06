@@ -1,0 +1,104 @@
+"""MoveIt service adapter with explicit measured start and collision scene."""
+import xml.etree.ElementTree as ET
+
+from .safety import JointPoint, UR5E_JOINTS
+
+
+def world_boxes(path, base_height=0.75):
+    """Translate the demo's axis-aligned SDF boxes into the robot base frame."""
+    boxes = []
+    for model in ET.parse(path).getroot().findall('./world/model'):
+        box = model.find('./link/collision/geometry/box/size')
+        if box is None:
+            continue
+        pose = [float(x) for x in model.findtext('pose', '0 0 0 0 0 0').split()]
+        if len(pose) != 6 or any(pose[3:]):
+            raise ValueError('Only axis-aligned model poses are supported')
+        boxes.append((model.attrib['name'], tuple(float(x) for x in box.text.split()),
+                      (pose[0], pose[1], pose[2] - base_height)))
+    boxes.append(('ground', (20.0, 20.0, 0.1), (0.0, 0.0, -base_height - 0.05)))
+    return boxes
+
+
+class MoveItPlanner:
+    def __init__(self, node):
+        self.node = node
+
+    def call(self, service_type, name, request, timeout=15.0):
+        import rclpy
+        client = self.node.create_client(service_type, name)
+        try:
+            if not client.wait_for_service(timeout_sec=timeout):
+                raise RuntimeError(f'service_unavailable:{name}')
+            future = client.call_async(request)
+            rclpy.spin_until_future_complete(self.node, future, timeout_sec=timeout)
+            if not future.done():
+                raise RuntimeError(f'service_timeout:{name}')
+            return future.result()
+        finally:
+            self.node.destroy_client(client)
+
+    def apply_boxes(self, boxes):
+        from moveit_msgs.srv import ApplyPlanningScene
+        from moveit_msgs.msg import CollisionObject
+        from shape_msgs.msg import SolidPrimitive
+        from geometry_msgs.msg import Pose
+        request = ApplyPlanningScene.Request()
+        request.scene.is_diff = True
+        request.scene.robot_state.is_diff = True
+        for name, size, position in boxes:
+            obj = CollisionObject()
+            obj.id = name
+            obj.header.frame_id = 'base_link'
+            obj.operation = CollisionObject.ADD
+            primitive = SolidPrimitive(type=SolidPrimitive.BOX, dimensions=list(size))
+            pose = Pose()
+            pose.orientation.w = 1.0
+            pose.position.x, pose.position.y, pose.position.z = position
+            obj.primitives = [primitive]
+            obj.primitive_poses = [pose]
+            request.scene.world.collision_objects.append(obj)
+        if not self.call(ApplyPlanningScene, '/apply_planning_scene', request).success:
+            raise RuntimeError('planning_scene_rejected')
+
+    def plan_joints(self, start, target):
+        from moveit_msgs.srv import GetMotionPlan
+        from moveit_msgs.msg import Constraints, JointConstraint
+        request = GetMotionPlan.Request()
+        motion = request.motion_plan_request
+        motion.group_name = 'ur_manipulator'
+        motion.allowed_planning_time = 5.0
+        motion.num_planning_attempts = 1
+        motion.max_velocity_scaling_factor = 0.1
+        motion.max_acceleration_scaling_factor = 0.1
+        motion.start_state.joint_state.name = list(UR5E_JOINTS)
+        motion.start_state.joint_state.position = list(start)
+        goal = Constraints()
+        for joint, value in zip(UR5E_JOINTS, target):
+            goal.joint_constraints.append(JointConstraint(joint_name=joint, position=float(value),
+                tolerance_above=0.001, tolerance_below=0.001, weight=1.0))
+        motion.goal_constraints = [goal]
+        response = self.call(GetMotionPlan, '/plan_kinematic_path', request).motion_plan_response
+        if response.error_code.val != 1:
+            raise RuntimeError(f'moveit_plan_rejected:{response.error_code.val}')
+        trajectory = response.trajectory.joint_trajectory
+        order = [trajectory.joint_names.index(joint) for joint in UR5E_JOINTS]
+        points = []
+        for item in trajectory.points:
+            seconds = item.time_from_start.sec + item.time_from_start.nanosec / 1e9
+            if seconds == 0:
+                if max(abs(item.positions[i] - value) for i, value in zip(order, start)) > 0.01:
+                    raise RuntimeError('planner_changed_start_state')
+                continue
+            points.append(JointPoint(seconds, tuple(item.positions[i] for i in order)))
+        if not points:
+            raise RuntimeError('empty_moveit_plan')
+        return tuple(points)
+
+    def state_validity(self, positions):
+        from moveit_msgs.srv import GetStateValidity
+        request = GetStateValidity.Request()
+        request.group_name = 'ur_manipulator'
+        request.robot_state.joint_state.name = list(UR5E_JOINTS)
+        request.robot_state.joint_state.position = list(positions)
+        return self.call(GetStateValidity, '/check_state_validity', request)
