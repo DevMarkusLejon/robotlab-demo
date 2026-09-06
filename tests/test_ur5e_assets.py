@@ -24,6 +24,12 @@ class UR5eAssetTests(unittest.TestCase):
         self.assertEqual(reference["joints"], list(UR5E_JOINTS))
         self.assertAlmostEqual(reference["kinematics_m"]["forearm_x"], -0.425)
 
+    def test_generator_is_checked_in_and_points_at_ur_description(self):
+        path = Path(__file__).parents[1] / "simulation" / "ur5e" / "generate_official_sdf.py"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("ur_description", text)
+        self.assertIn("sim_ignition:=false", text)
+
 
 if __name__ == "__main__":
     unittest.main()

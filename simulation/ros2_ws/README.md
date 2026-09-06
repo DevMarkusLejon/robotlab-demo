@@ -2,8 +2,9 @@
 
 This directory is the handoff point from the working Gazebo transport demo to a
 production-shaped ROS 2 stack. It deliberately does not vendor Universal
-Robots meshes or claim that ROS 2 is installed on the current Windows/WSL
-machine.
+Robots meshes. On the current machine, ROS 2 Humble plus the UR description,
+MoveIt and `gz_ros2_control` packages are installed and this package has been
+built with `colcon`.
 
 ## Target stack
 
@@ -33,6 +34,44 @@ The package in `src/robotlab_ur5e_bringup` contains the controller names and
 joint order used by the Python safety gate, plus the matching MoveIt
 `FollowJointTrajectory` contract. It is intentionally a scaffold until the
 exact URDF, world spawn arguments, and hardware namespace are agreed.
+
+The lightweight reference world uses Gazebo Harmonic (`gz-sim8`). The installed
+Humble `gz_ros2_control` binary targets the Ignition/Gazebo 6 generation, so
+the controller bridge itself is not claimed as a running Harmonic integration
+yet; use the Jazzy/Harmonic target stack above for that final launch.
+
+The installed compatibility launch is headless by design and can be verified
+with `ros2 launch robotlab_ur5e_bringup ur5e_gz_ros2.launch.py`. It starts the
+official UR5e through `ur_description`, creates the entity in Gazebo, and
+spawns the joint-state and trajectory controllers. Add a GUI separately with
+`ign gazebo` when a display is available.
+
+The verified WSL2 command sequence is:
+
+```bash
+source /opt/ros/humble/setup.bash
+source simulation/ros2_ws/install/setup.bash
+ros2 launch robotlab_ur5e_bringup ur5e_gz_ros2.launch.py
+```
+
+In another terminal, confirm the control contract:
+
+```bash
+source /opt/ros/humble/setup.bash
+ros2 control list_controllers
+ros2 action list
+```
+
+The current validation reached `active` for both controllers and completed a
+six-joint `control_msgs/action/FollowJointTrajectory` goal with
+`error_code: 0`. The launch is headless so it can run reliably without an
+Ogre/EGL display.
+
+For a repeatable check instead of running the commands manually:
+
+```bash
+bash simulation/ros2_ws/scripts/ros2_smoke_test.sh
+```
 
 ## Acceptance checks for the real bridge
 

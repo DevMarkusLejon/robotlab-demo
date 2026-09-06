@@ -7,6 +7,21 @@ captured in [`ur5e_reference.json`](ur5e_reference.json). The current SDF keeps
 lightweight geometry for fast local iteration; it does not pretend to be the
 licensed production mesh.
 
+Once the ROS2 packages are sourced in WSL2, the official UR meshes and links
+can be generated locally with:
+
+```bash
+source /opt/ros/humble/setup.bash
+python3 simulation/ur5e/generate_official_sdf.py
+gz sim -v 2 -r artifacts/ur5e-official-world.sdf
+```
+
+The generated artifact uses the installed `ur_description` package and leaves
+control to the ROS2 scaffold. This keeps the repository small while making the
+exact model reproducible on a ROS host. Mesh URIs are resolved to the local
+ROS installation at generation time, so no Gazebo resource-path environment
+variable is needed for the generated wrapper on that host.
+
 Open `dashboard.html` in a browser for the accompanying pitch surface. It makes the execution stages visible: intent, transport, safety, trajectory, and observer confirmation.
 
 ## Run
