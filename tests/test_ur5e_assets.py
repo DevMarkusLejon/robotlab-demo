@@ -1,3 +1,4 @@
+import json
 import unittest
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -15,6 +16,13 @@ class UR5eAssetTests(unittest.TestCase):
         self.assertTrue(set(UR5E_JOINTS).issubset(joints))
         camera = root.find(".//sensor[@name='board_camera']")
         self.assertIsNotNone(camera)
+
+    def test_reference_constants_keep_official_joint_order(self):
+        path = Path(__file__).parents[1] / "simulation" / "ur5e" / "ur5e_reference.json"
+        reference = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(reference["model"], "UR5e")
+        self.assertEqual(reference["joints"], list(UR5E_JOINTS))
+        self.assertAlmostEqual(reference["kinematics_m"]["forearm_x"], -0.425)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,31 @@
+{
+  "model": "UR5e",
+  "source": "https://github.com/UniversalRobots/Universal_Robots_ROS2_Description",
+  "source_config": "config/ur5e/default_kinematics.yaml and config/ur5e/joint_limits.yaml",
+  "joints": [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
+  ],
+  "kinematics_m": {
+    "shoulder_z": 0.1625,
+    "upper_arm_x": 0.0,
+    "forearm_x": -0.425,
+    "wrist_1_x": -0.3922,
+    "wrist_1_z": 0.1333,
+    "wrist_2_y": -0.0997,
+    "wrist_3_y": 0.0996
+  },
+  "joint_limits_rad": {
+    "shoulder_pan_joint": [-6.2831853072, 6.2831853072],
+    "shoulder_lift_joint": [-6.2831853072, 6.2831853072],
+    "elbow_joint": [-3.1415926536, 3.1415926536],
+    "wrist_1_joint": [-6.2831853072, 6.2831853072],
+    "wrist_2_joint": [-6.2831853072, 6.2831853072],
+    "wrist_3_joint": [-6.2831853072, 6.2831853072]
+  },
+  "max_velocity_rad_s": 3.1415926536
+}

@@ -42,6 +42,9 @@ För en fysisk bordskamera finns dessutom en fyrpunkts-perspektivkalibrering i
 Den fulla demo-kedjan kan köras med
 `python3 simulation/ur5e/shared_autonomy_demo.py --cell 4 --settle 1.2`;
 den demonstrerar intent → nätverk → safety → exekvering i en enda telemetryfil.
+UR5e:s officiella kinematik- och ledreferenser ligger i
+`simulation/ur5e/ur5e_reference.json`; SDF-geometrin är medvetet lättviktig
+fram tills den officiella ROS-beskrivningen kopplas in.
 
 ```json
 {

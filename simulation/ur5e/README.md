@@ -2,6 +2,11 @@
 
 This replaces the toy 3-DOF arm with a six-joint UR5e-shaped reference model. It is a vertical slice of the intended RobotLab product: a human target becomes a guarded trajectory, Gazebo executes it, and JSONL telemetry records what happened.
 
+The exact reference constants used for the next official-model integration are
+captured in [`ur5e_reference.json`](ur5e_reference.json). The current SDF keeps
+lightweight geometry for fast local iteration; it does not pretend to be the
+licensed production mesh.
+
 Open `dashboard.html` in a browser for the accompanying pitch surface. It makes the execution stages visible: intent, transport, safety, trajectory, and observer confirmation.
 
 ## Run
