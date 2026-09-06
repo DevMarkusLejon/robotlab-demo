@@ -4,9 +4,21 @@ from robotlab.intent import HandIntent, IntentGate
 from robotlab.network import NetworkSimulator
 from robotlab.pipeline import SharedAutonomyPipeline
 from robotlab.safety import JointPoint
+from robotlab.metrics import percentile, summarize_events
 
 
 class NetworkTests(unittest.TestCase):
+    def test_percentile_and_event_metrics_are_deterministic(self):
+        self.assertEqual(percentile([100, 20, 40], 0.5), 40)
+        summary = summarize_events([
+            {"event": "trajectory_checked", "accepted": True},
+            {"event": "placement_verified"},
+            {"event": "transport_delivered", "latency_ms": 40},
+            {"event": "transport_delivered", "latency_ms": 80},
+        ])
+        self.assertEqual(summary["trajectory_acceptance_rate"], 1.0)
+        self.assertEqual(summary["transport_latency_p95_ms"], 80.0)
+
     def test_delivers_within_deadline_and_rejects_expiry(self):
         network = NetworkSimulator(latency_ms=50)
         self.assertTrue(network.deliver({}, sent_at_ms=0, deadline_ms=50).delivered)

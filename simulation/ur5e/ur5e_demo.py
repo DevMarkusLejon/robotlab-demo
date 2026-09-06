@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
 
 from robotlab.safety import JointPoint, UR5E_JOINTS, validate_trajectory  # noqa: E402
 from robotlab.telemetry import TelemetryRecorder  # noqa: E402
+from robotlab.network import NetworkSimulator  # noqa: E402
 
 CELL_TARGETS = {
     0: (0.12, -0.18), 1: (0.28, -0.18), 2: (0.44, -0.18),
@@ -58,7 +59,16 @@ def publish_point(point: tuple[float, ...]) -> None:
         publish(topic, value)
 
 
-def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder) -> None:
+def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder,
+                 network: NetworkSimulator, deadline_ms: int) -> None:
+    delivery = network.deliver({"cell": cell}, sent_at_ms=0, deadline_ms=deadline_ms)
+    if not delivery.delivered:
+        recorder.record("transport_rejected", cell=cell, reason=delivery.reason,
+                        delivered_at_ms=delivery.delivered_at_ms)
+        raise RuntimeError(f"transport rejected command: {delivery.reason}")
+    recorder.record("transport_delivered", cell=cell,
+                    delivered_at_ms=delivery.delivered_at_ms,
+                    latency_ms=delivery.delivered_at_ms)
     high = ik_for_cell(cell, z=0.98)
     low = ik_for_cell(cell, z=0.82)
     plan = tuple(JointPoint(index * settle_s, values) for index, values in enumerate((HOME, high, low, high, HOME)))
@@ -81,15 +91,38 @@ def main() -> int:
     parser.add_argument("--cell", type=int, choices=range(9), help="run one target cell")
     parser.add_argument("--settle", type=float, default=1.0, help="seconds between trajectory points")
     parser.add_argument("--telemetry", type=Path, default=Path("artifacts/ur5e-events.jsonl"))
+    parser.add_argument("--latency-ms", type=int, default=80,
+                        help="simulated command latency before the Gazebo publish")
+    parser.add_argument("--jitter-ms", type=int, default=0,
+                        help="deterministic transport jitter")
+    parser.add_argument("--drop-rate", type=float, default=0.0,
+                        help="simulated packet-loss probability in [0, 1]")
+    parser.add_argument("--deadline-ms", type=int, default=500,
+                        help="maximum simulated command age before rejection")
     args = parser.parse_args()
     if args.settle <= 0:
         parser.error("--settle must be positive")
+    if args.latency_ms < 0 or args.jitter_ms < 0:
+        parser.error("--latency-ms and --jitter-ms must be nonnegative")
+    if not 0 <= args.drop_rate <= 1:
+        parser.error("--drop-rate must be in [0, 1]")
+    if args.deadline_ms < 0:
+        parser.error("--deadline-ms must be nonnegative")
     cells = [args.cell] if args.cell is not None else [4, 0, 8]
     recorder = TelemetryRecorder(args.telemetry)
-    recorder.record("demo_started", robot="ur5e_reference", cells=cells, executor="gz_transport")
-    for cell in cells:
-        print(f"UR5e target cell {cell}")
-        execute_cell(cell, args.settle, recorder)
+    network = NetworkSimulator(latency_ms=args.latency_ms, jitter_ms=args.jitter_ms,
+                               drop_rate=args.drop_rate, seed=0)
+    recorder.record("demo_started", robot="ur5e_reference", cells=cells, executor="gz_transport",
+                    transport={"latency_ms": args.latency_ms, "jitter_ms": args.jitter_ms,
+                               "drop_rate": args.drop_rate, "deadline_ms": args.deadline_ms})
+    try:
+        for cell in cells:
+            print(f"UR5e target cell {cell}")
+            execute_cell(cell, args.settle, recorder, network, args.deadline_ms)
+    except (RuntimeError, ValueError) as error:
+        recorder.record("demo_aborted", reason=str(error))
+        print(f"Demo aborted safely: {error}", file=sys.stderr)
+        return 2
     summary = recorder.summary()
     recorder.record("demo_completed", **summary)
     print(f"Telemetry written to {args.telemetry}")

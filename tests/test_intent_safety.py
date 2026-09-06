@@ -3,12 +3,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from robotlab.intent import HandIntent, IntentGate
+from robotlab.intent import HandIntent, IntentGate, normalized_from_pixel
 from robotlab.safety import JointPoint, validate_trajectory
 from robotlab.telemetry import TelemetryRecorder
 
 
 class IntentTests(unittest.TestCase):
+    def test_pixel_bridge_returns_cell_center_coordinates(self):
+        point = normalized_from_pixel((150, 250), left=100, top=200, side=300)
+        self.assertAlmostEqual(point[0], 50.5 / 300)
+        self.assertAlmostEqual(point[1], 50.5 / 300)
+        self.assertIsNone(normalized_from_pixel((99, 250), left=100, top=200, side=300))
+
     def test_requires_stable_high_confidence_point(self):
         gate = IntentGate(stable_frames=3)
         results = [gate.update(HandIntent(0.5, 0.5, 0.9, timestamp_ms=i, track_id=2), now_ms=i)

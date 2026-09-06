@@ -97,3 +97,18 @@ class IntentGate:
         col = min(2, int(x * 3))
         row = min(2, int(y * 3))
         return row * 3 + col
+
+
+def normalized_from_pixel(point: tuple[int, int] | None, *, left: int, top: int, side: int) -> tuple[float, float] | None:
+    """Convert a fingertip pixel from the webcam overlay into board coordinates."""
+    if point is None:
+        return None
+    if type(left) is not int or type(top) is not int or type(side) is not int or side < 1:
+        raise ValueError("left, top and side must describe a positive pixel square")
+    if (not isinstance(point, tuple) or len(point) != 2 or
+            any(type(value) is not int for value in point)):
+        raise ValueError("point must be a pair of integer pixels or None")
+    x, y = point
+    if not left <= x < left + side or not top <= y < top + side:
+        return None
+    return ((x - left + 0.5) / side, (y - top + 0.5) / side)

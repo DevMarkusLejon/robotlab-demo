@@ -26,9 +26,24 @@ Run the short multi-target demo with:
 python3 simulation/ur5e/ur5e_demo.py
 ```
 
+Transport conditions can be exercised without changing the robot scene:
+
+```bash
+python3 simulation/ur5e/ur5e_demo.py --latency-ms 180 --jitter-ms 40 --deadline-ms 500
+python3 simulation/ur5e/ur5e_demo.py --drop-rate 1.0
+```
+
+The first command records the modeled delivery latency before a command is
+published. The second demonstrates a fail-closed packet-loss rejection. Both
+outcomes are written to the JSONL event stream.
+
 The driver checks joint limits, finite values, monotonic timestamps, and maximum joint speed before publishing anything. It records `demo_started`, `trajectory_checked`, `trajectory_point`, `placement_verified`, and `demo_completed` in `artifacts/ur5e-events.jsonl`. The current placement verification is a simulation observer seam; a real version must consume camera or gripper feedback before claiming success.
 
 `robotlab.intent.IntentGate`, `robotlab.network.NetworkSimulator`, and `robotlab.pipeline.SharedAutonomyPipeline` are dependency-free seams for the camera, unreliable transport, and execution adapter. They are covered by tests and can be connected to the existing MediaPipe webcam loop without changing the game rules.
+
+The ROS 2 handoff is captured in [`simulation/ros2_ws`](../ros2_ws). It pins
+the six-joint controller contract while leaving official UR meshes and the
+final launch topology to the target ROS distribution.
 
 ## Product path
 
