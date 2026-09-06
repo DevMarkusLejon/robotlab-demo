@@ -30,8 +30,9 @@ source install/setup.bash
 ```
 
 The package in `src/robotlab_ur5e_bringup` contains the controller names and
-joint order used by the Python safety gate. It is intentionally a scaffold
-until the exact URDF, world spawn arguments, and hardware namespace are agreed.
+joint order used by the Python safety gate, plus the matching MoveIt
+`FollowJointTrajectory` contract. It is intentionally a scaffold until the
+exact URDF, world spawn arguments, and hardware namespace are agreed.
 
 ## Acceptance checks for the real bridge
 
@@ -42,4 +43,3 @@ until the exact URDF, world spawn arguments, and hardware namespace are agreed.
    violations before the controller action is sent.
 4. A scene observer verifies the placed token and records the result in the
    same JSONL telemetry schema used by the reference demo.
-

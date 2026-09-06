@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .metrics import summarize_events
+
 
 class TelemetryRecorder:
     def __init__(self, path: str | Path) -> None:
@@ -24,6 +26,8 @@ class TelemetryRecorder:
 
     def summary(self) -> dict[str, Any]:
         events = [item["event"] for item in self.events]
-        return {"event_count": len(events), "events": events,
-                "accepted_intents": sum(item == "intent_accepted" for item in events),
-                "safety_rejections": sum(item == "safety_rejected" for item in events)}
+        summary = {"event_count": len(events), "events": events,
+                   "accepted_intents": sum(item == "intent_accepted" for item in events),
+                   "safety_rejections": sum(item == "safety_rejected" for item in events)}
+        summary.update(summarize_events(self.events))
+        return summary

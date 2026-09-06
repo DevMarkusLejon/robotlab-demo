@@ -47,6 +47,9 @@ class SharedAutonomyPipeline:
             self._record("transport_rejected", cell=decision.cell, reason=delivery.reason,
                          delivered_at_ms=delivery.delivered_at_ms)
             return PipelineResult("rejected", "transport", decision.cell, delivery.reason)
+        self._record("transport_delivered", cell=decision.cell,
+                     delivered_at_ms=delivery.delivered_at_ms,
+                     latency_ms=delivery.delivered_at_ms - now_ms)
         report = validate_trajectory(tuple(trajectory))
         if not report.accepted:
             self._record("safety_rejected", cell=decision.cell, reason=report.reason)

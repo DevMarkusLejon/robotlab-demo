@@ -1,6 +1,6 @@
 import unittest
 
-from robotlab.webcam import BoardRect, cell_from_point
+from robotlab.webcam import BoardRect, HandObservation, cell_from_point, intent_from_observation
 
 
 class WebcamMappingTests(unittest.TestCase):
@@ -29,6 +29,19 @@ class WebcamMappingTests(unittest.TestCase):
         from robotlab.webcam import detect_fingertip
         with self.assertRaises(ValueError):
             detect_fingertip(None, region="board")
+
+    def test_observation_bridges_to_the_shared_intent_contract(self):
+        observation = HandObservation((250, 200), 0.91, gesture="point", track_id=3)
+        intent = intent_from_observation(observation, self.board, timestamp_ms=123)
+        self.assertAlmostEqual(intent.x, 150.5 / 300)
+        self.assertAlmostEqual(intent.y, 150.5 / 300)
+        self.assertEqual((intent.confidence, intent.track_id, intent.timestamp_ms), (0.91, 3, 123))
+
+    def test_observation_rejects_bad_confidence_and_gesture(self):
+        with self.assertRaises(ValueError):
+            HandObservation((1, 2), 1.1)
+        with self.assertRaises(ValueError):
+            HandObservation((1, 2), 0.9, gesture="wave")
 
 
 if __name__ == "__main__":

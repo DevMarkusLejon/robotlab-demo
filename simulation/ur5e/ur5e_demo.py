@@ -59,19 +59,16 @@ def publish_point(point: tuple[float, ...]) -> None:
         publish(topic, value)
 
 
-def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder,
-                 network: NetworkSimulator, deadline_ms: int) -> None:
-    delivery = network.deliver({"cell": cell}, sent_at_ms=0, deadline_ms=deadline_ms)
-    if not delivery.delivered:
-        recorder.record("transport_rejected", cell=cell, reason=delivery.reason,
-                        delivered_at_ms=delivery.delivered_at_ms)
-        raise RuntimeError(f"transport rejected command: {delivery.reason}")
-    recorder.record("transport_delivered", cell=cell,
-                    delivered_at_ms=delivery.delivered_at_ms,
-                    latency_ms=delivery.delivered_at_ms)
+def trajectory_for_cell(cell: int, settle_s: float) -> tuple[JointPoint, ...]:
     high = ik_for_cell(cell, z=0.98)
     low = ik_for_cell(cell, z=0.82)
-    plan = tuple(JointPoint(index * settle_s, values) for index, values in enumerate((HOME, high, low, high, HOME)))
+    return tuple(JointPoint(index * settle_s, values)
+                 for index, values in enumerate((HOME, high, low, high, HOME)))
+
+
+def execute_trajectory(cell: int, plan: tuple[JointPoint, ...],
+                       settle_s: float, recorder: TelemetryRecorder) -> None:
+    """Publish an already-authorized trajectory to Gazebo and observe it."""
     report = validate_trajectory(plan, max_speed_rad_s=2.0)
     recorder.record("trajectory_checked", cell=cell, accepted=report.accepted, reason=report.reason,
                     max_speed_rad_s=report.max_speed_rad_s, point_count=report.point_count)
@@ -84,6 +81,19 @@ def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder,
                         joints=dict(zip(UR5E_JOINTS, point.positions)))
         time.sleep(settle_s)
     recorder.record("placement_verified", cell=cell, verification="simulated_scene_observer")
+
+
+def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder,
+                 network: NetworkSimulator, deadline_ms: int) -> None:
+    delivery = network.deliver({"cell": cell}, sent_at_ms=0, deadline_ms=deadline_ms)
+    if not delivery.delivered:
+        recorder.record("transport_rejected", cell=cell, reason=delivery.reason,
+                        delivered_at_ms=delivery.delivered_at_ms)
+        raise RuntimeError(f"transport rejected command: {delivery.reason}")
+    recorder.record("transport_delivered", cell=cell,
+                    delivered_at_ms=delivery.delivered_at_ms,
+                    latency_ms=delivery.delivered_at_ms)
+    execute_trajectory(cell, trajectory_for_cell(cell, settle_s), settle_s, recorder)
 
 
 def main() -> int:

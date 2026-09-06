@@ -24,7 +24,7 @@ python -m robotlab webcam
 
 Installera webcam-tillägget och kör `python -m robotlab webcam`. Ett fönster visar kamerabilden och ett virtuellt bräde. Håll upp pekfingret så att fingertoppen ligger över en tom ruta i ungefär tolv bildrutor; då spelar du X. Den simulerade roboten svarar som O. Tryck Q eller Escape för att avsluta.
 
-Webcamläget använder MediaPipes förtränade Hand Landmarker-modell. Den använder handens 21 landmärken och pekfingrets fingertopp (landmark 8), så ansikte och huvud används inte för positionsspårning. Modellen laddas ner med `python -m robotlab download-model` från den officiella MediaPipe-modellservern. Bilderna analyseras lokalt och skickas inte över nätet. Detta gör ingen säkerhetsbedömning och driver ingen fysisk robot. Anpassa belysning och `--stable-frames` vid behov.
+Webcamläget använder MediaPipes förtränade Hand Landmarker-modell. Den använder handens 21 landmärken och pekfingrets fingertopp (landmark 8), så ansikte och huvud används inte för positionsspårning. En enkel geometriheuristik kräver att pekfingret är utsträckt och klassar övriga observationer som `unknown`; därefter måste samma mål passera `IntentGate` med confidence- och stabilitetskrav innan spelet accepterar ett drag. Modellen laddas ner med `python -m robotlab download-model` från den officiella MediaPipe-modellservern. Bilderna analyseras lokalt och skickas inte över nätet. Detta gör ingen säkerhetsbedömning och driver ingen fysisk robot. Anpassa belysning och `--stable-frames` vid behov.
 
 ## Gazebo-simulering
 
@@ -36,6 +36,12 @@ Den mer realistiska vertikala skivan finns i [simulation/ur5e](simulation/ur5e).
 
 ROS 2/MoveIt 2-handoffen finns i [simulation/ros2_ws](simulation/ros2_ws): där
 ligger controller-kontraktet med samma sex lednamn som säkerhetsgaten använder.
+För en fysisk bordskamera finns dessutom en fyrpunkts-perspektivkalibrering i
+`robotlab.calibration` och ett exempel i
+`simulation/ur5e/calibration.example.json`.
+Den fulla demo-kedjan kan köras med
+`python3 simulation/ur5e/shared_autonomy_demo.py --cell 4 --settle 1.2`;
+den demonstrerar intent → nätverk → safety → exekvering i en enda telemetryfil.
 
 ```json
 {

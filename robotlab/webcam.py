@@ -11,8 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Any
+from typing import Any, Iterable
 
+from .calibration import BoardCalibration
+from .intent import HandIntent, IntentGate, normalized_from_pixel
 from .session import Session, make_command
 
 
@@ -29,6 +31,47 @@ class BoardRect:
             raise ValueError("board rectangle coordinates must be integers")
         if self.side < 3:
             raise ValueError("board side must be at least 3 pixels")
+
+
+@dataclass(frozen=True)
+class HandObservation:
+    """Per-frame hand result used by the intent gate."""
+
+    fingertip: tuple[int, int]
+    confidence: float
+    gesture: str = "point"
+    track_id: int = 0
+
+    def __post_init__(self) -> None:
+        if (not isinstance(self.fingertip, tuple) or len(self.fingertip) != 2 or
+                any(type(value) is not int for value in self.fingertip)):
+            raise ValueError("fingertip must be an integer pixel pair")
+        if not isinstance(self.confidence, (int, float)) or isinstance(self.confidence, bool):
+            raise ValueError("confidence must be a number")
+        if not 0 <= float(self.confidence) <= 1:
+            raise ValueError("confidence must be in [0, 1]")
+        if self.gesture not in {"point", "pinch", "open", "unknown"}:
+            raise ValueError("unsupported gesture")
+        if type(self.track_id) is not int or self.track_id < 0:
+            raise ValueError("track_id must be a nonnegative integer")
+
+
+def _is_pointing(landmarks: Iterable[Any]) -> bool:
+    """Use a conservative geometry heuristic to label an extended index finger."""
+    points = list(landmarks)
+    if len(points) < 21:
+        return False
+    wrist = points[0]
+
+    def distance(a: Any, b: Any) -> float:
+        return ((float(a.x) - float(b.x)) ** 2 + (float(a.y) - float(b.y)) ** 2) ** 0.5
+
+    index_extended = distance(wrist, points[8]) > distance(wrist, points[6]) * 1.08
+    other_extended = sum(
+        distance(wrist, points[tip]) > distance(wrist, points[pip]) * 1.08
+        for tip, pip in ((12, 10), (16, 14), (20, 18))
+    )
+    return index_extended and other_extended <= 1
 
 
 def cell_from_point(point: tuple[int, int] | None, board: BoardRect) -> int | None:
@@ -52,7 +95,12 @@ _MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/ha
 
 
 class HandTracker:
-    """MediaPipe Hand Landmarker wrapper (21 landmarks, no face segmentation)."""
+    """MediaPipe Hand Landmarker wrapper (21 landmarks, no face segmentation).
+
+    ``observe`` exposes the confidence and pointing label needed by the shared
+    intent gate; ``detect`` remains a backwards-compatible fingertip-only
+    helper for callers that only need the overlay point.
+    """
 
     def __init__(self, model_path: str | Path = _DEFAULT_MODEL):
         self.model_path = Path(model_path)
@@ -98,9 +146,9 @@ class HandTracker:
     def __exit__(self, *_exc: object) -> None:
         self.close()
 
-    def detect(self, frame: Any, region: BoardRect | None = None,
-               timestamp_ms: int = 0) -> tuple[int, int] | None:
-        """Return the index fingertip pixel (landmark 8), filtered to region."""
+    def observe(self, frame: Any, region: BoardRect | None = None,
+                timestamp_ms: int = 0) -> HandObservation | None:
+        """Return fingertip, confidence and a conservative pointing label."""
         if frame is None or getattr(frame, "ndim", 0) != 3:
             raise ValueError("frame must be a BGR image")
         if region is not None and not isinstance(region, BoardRect):
@@ -113,11 +161,26 @@ class HandTracker:
         result = self._landmarker.detect_for_video(image, timestamp_ms)
         if not result.hand_landmarks:
             return None
-        tip = result.hand_landmarks[0][8]  # INDEX_FINGER_TIP in MediaPipe's 21-point model.
-        point = (round(tip.x * frame.shape[1]), round(tip.y * frame.shape[0]))
+        landmarks = result.hand_landmarks[0]
+        tip = landmarks[8]  # INDEX_FINGER_TIP in MediaPipe's 21-point model.
+        point = (min(frame.shape[1] - 1, max(0, round(tip.x * frame.shape[1]))),
+                 min(frame.shape[0] - 1, max(0, round(tip.y * frame.shape[0]))))
         if region is not None and cell_from_point(point, region) is None:
             return None
-        return point
+        confidence = 0.9
+        handedness = getattr(result, "handedness", None)
+        if handedness:
+            category = handedness[0][0] if handedness[0] else None
+            score = getattr(category, "score", None)
+            if isinstance(score, (int, float)) and not isinstance(score, bool):
+                confidence = min(1.0, max(0.0, float(score)))
+        return HandObservation(point, confidence, "point" if _is_pointing(landmarks) else "unknown")
+
+    def detect(self, frame: Any, region: BoardRect | None = None,
+               timestamp_ms: int = 0) -> tuple[int, int] | None:
+        """Return the index fingertip pixel (landmark 8), filtered to region."""
+        observation = self.observe(frame, region, timestamp_ms)
+        return observation.fingertip if observation else None
 
 
 def detect_fingertip(frame: Any, region: BoardRect | None = None,
@@ -136,6 +199,25 @@ def detect_fingertip(frame: Any, region: BoardRect | None = None,
         return tracker.detect(frame, region, timestamp_ms)
     with HandTracker() as own_tracker:
         return own_tracker.detect(frame, region, timestamp_ms)
+
+
+def intent_from_observation(observation: HandObservation | None,
+                            board: BoardRect | BoardCalibration,
+                            *, timestamp_ms: int) -> HandIntent | None:
+    """Convert a camera observation into the normalized intent contract."""
+    if observation is None:
+        return None
+    if isinstance(board, BoardRect):
+        coordinates = normalized_from_pixel(observation.fingertip, left=board.left,
+                                            top=board.top, side=board.side)
+    elif isinstance(board, BoardCalibration):
+        coordinates = board.normalized(observation.fingertip)
+    else:
+        raise ValueError("board must be a BoardRect or BoardCalibration")
+    if coordinates is None:
+        return None
+    return HandIntent(*coordinates, observation.confidence, timestamp_ms,
+                      gesture=observation.gesture, track_id=observation.track_id)
 
 
 def _require_cv2():
@@ -162,8 +244,7 @@ def run_webcam(camera_index: int = 0, *, stable_frames: int = 12,
         capture.release()
         raise RuntimeError(f"Could not open webcam index {camera_index}")
     session = Session()
-    last_cell = None
-    stable_count = 0
+    gate = IntentGate(stable_frames=stable_frames)
     message = "Point at a cell and hold steady"
     with HandTracker(model_path) as tracker:
       try:
@@ -176,26 +257,29 @@ def run_webcam(camera_index: int = 0, *, stable_frames: int = 12,
             side = max(3, int(min(width, height) * 0.62))
             rect = BoardRect((width - side) // 2, (height - side) // 2, side)
             timestamp_ms = session.clock()
-            fingertip = detect_fingertip(frame, rect, tracker=tracker,
-                                         timestamp_ms=timestamp_ms)
-            cell = cell_from_point(fingertip, rect)
-            if cell is not None and cell in session.state()["legal_moves"]:
-                if cell == last_cell:
-                    stable_count += 1
-                else:
-                    last_cell, stable_count = cell, 1
-                message = f"Cell {cell}: hold {max(0, stable_frames - stable_count)} more frames"
-                if stable_count >= stable_frames:
+            observation = tracker.observe(frame, rect, timestamp_ms=timestamp_ms)
+            fingertip = observation.fingertip if observation else None
+            intent = intent_from_observation(observation, rect, timestamp_ms=timestamp_ms)
+            if intent is None:
+                gate.reset()
+                message = "Show one pointing hand over an empty cell"
+            else:
+                state = session.state()
+                decision = gate.update(intent, now_ms=timestamp_ms,
+                                       legal_cells=set(state["legal_moves"]))
+                if decision.status == "accepted":
                     state = session.state()
-                    session.submit(make_command(state, "move", cell=cell))
+                    session.submit(make_command(state, "move", cell=decision.cell))
                     state = session.state()
                     if state["next_player"] == "O":
                         session.submit(make_command(state, "robot_move"))
-                    last_cell, stable_count = None, 0
+                    gate.reset()
                     message = "Move accepted; point at your next cell"
-            else:
-                last_cell, stable_count = None, 0
-                message = "Point at an empty cell and hold steady"
+                elif decision.status == "confirming":
+                    message = (f"Cell {decision.cell}: hold steady "
+                               f"({decision.stable_frames}/{stable_frames})")
+                else:
+                    message = f"Intent blocked: {decision.reason}"
             _draw_frame(cv2, frame, rect, session.state(), fingertip, message)
             cv2.imshow("RobotLab webcam - simulation only", frame)
             key = cv2.waitKey(1) & 0xFF

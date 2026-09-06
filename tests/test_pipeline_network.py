@@ -1,9 +1,12 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from robotlab.intent import HandIntent, IntentGate
 from robotlab.network import NetworkSimulator
 from robotlab.pipeline import SharedAutonomyPipeline
 from robotlab.safety import JointPoint
+from robotlab.telemetry import TelemetryRecorder
 from robotlab.metrics import percentile, summarize_events
 
 
@@ -40,6 +43,21 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(pipeline.handle_intent(intent(0), now_ms=0, legal_cells={4}, trajectory=point, deadline_ms=100).stage, "perception")
         result = pipeline.handle_intent(intent(1), now_ms=1, legal_cells={4}, trajectory=point, deadline_ms=100)
         self.assertEqual((result.status, result.stage, result.cell), ("ready", "execution", 4))
+
+    def test_pipeline_records_transport_delivery_latency(self):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = TelemetryRecorder(Path(directory) / "events.jsonl")
+            pipeline = SharedAutonomyPipeline(
+                gate=IntentGate(stable_frames=1),
+                network=NetworkSimulator(latency_ms=20),
+                telemetry=recorder,
+            )
+            result = pipeline.handle_intent(
+                HandIntent(0.5, 0.5, 0.95, 10), now_ms=10, legal_cells={4},
+                trajectory=(JointPoint(0, (0, -1, 1, -1, 0, 0)),), deadline_ms=40,
+            )
+            self.assertEqual(result.status, "ready")
+            self.assertEqual(recorder.summary()["transport_latency_p95_ms"], 20.0)
 
     def test_pipeline_rejects_network_deadline(self):
         pipeline = SharedAutonomyPipeline(gate=IntentGate(stable_frames=1),

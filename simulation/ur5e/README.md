@@ -26,6 +26,14 @@ Run the short multi-target demo with:
 python3 simulation/ur5e/ur5e_demo.py
 ```
 
+To exercise the complete guarded path with a deterministic pointing intent,
+run the shared-autonomy driver. It feeds a stable target through perception,
+transport and safety before publishing the UR5e trajectory:
+
+```bash
+python3 simulation/ur5e/shared_autonomy_demo.py --cell 4 --settle 1.2
+```
+
 Transport conditions can be exercised without changing the robot scene:
 
 ```bash
@@ -44,6 +52,12 @@ The driver checks joint limits, finite values, monotonic timestamps, and maximum
 The ROS 2 handoff is captured in [`simulation/ros2_ws`](../ros2_ws). It pins
 the six-joint controller contract while leaving official UR meshes and the
 final launch topology to the target ROS distribution.
+
+For a physical overhead camera, save four image points in the order
+top-left, top-right, bottom-right, bottom-left. The checked-in
+[`calibration.example.json`](calibration.example.json) shows the format;
+`robotlab.calibration.BoardCalibration.from_json` maps fingertip pixels through
+the resulting perspective transform before the intent gate sees them.
 
 ## Product path
 
