@@ -65,15 +65,23 @@ def main():
     webcam.add_argument("--camera", type=int, default=0, help="OpenCV camera index (default: 0)")
     webcam.add_argument("--stable-frames", type=int, default=12,
                         help="Frames a pointing position must remain stable (default: 12)")
+    webcam.add_argument("--model", type=Path, help="Path to a MediaPipe .task model")
+    commands.add_parser("download-model", help="Download the official MediaPipe hand model")
     args = parser.parse_args()
     try:
         if args.command == "serve":
             with make_server(args.port) as server:
                 print(f"SIMULATION ONLY: http://127.0.0.1:{server.server_port}/state", flush=True)
                 server.serve_forever()
+        elif args.command == "download-model":
+            from .webcam import download_model
+            print(download_model())
         elif args.command == "webcam":
             from .webcam import run_webcam
-            result = run_webcam(args.camera, stable_frames=args.stable_frames)
+            kwargs = {"stable_frames": args.stable_frames}
+            if args.model:
+                kwargs["model_path"] = args.model
+            result = run_webcam(args.camera, **kwargs)
             print(json.dumps(result["final_state"], ensure_ascii=False))
         else:
             trace = play(interactive=args.command == "play")
