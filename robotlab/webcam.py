@@ -44,12 +44,14 @@ def cell_from_point(point: tuple[int, int] | None, board: BoardRect) -> int | No
     return row * 3 + col
 
 
-def detect_fingertip(frame: Any) -> tuple[int, int] | None:
+def detect_fingertip(frame: Any, region: BoardRect | None = None) -> tuple[int, int] | None:
     """Return the topmost point of the largest skin-colour contour.
 
     This deliberately simple baseline is useful for a first demo in stable
     lighting. It is not a safety-rated hand tracker; return None when no large
     enough contour can be found and require the user to keep the hand visible.
+    When ``region`` is supplied, contours outside that rectangle are ignored.
+    The game uses this to avoid mistaking a face above the board for a hand.
     """
     cv2 = _require_cv2()
     import numpy as np
@@ -60,6 +62,16 @@ def detect_fingertip(frame: Any) -> tuple[int, int] | None:
     # Broad skin baseline; tune for the room and lighting during the demo.
     mask = cv2.inRange(hsv, np.array([0, 35, 45], dtype=np.uint8),
                        np.array([25, 255, 255], dtype=np.uint8))
+    if region is not None:
+        if not isinstance(region, BoardRect):
+            raise ValueError("region must be a BoardRect or None")
+        clipped = np.zeros_like(mask)
+        x0, y0 = max(0, region.left), max(0, region.top)
+        x1 = min(mask.shape[1], region.left + region.side)
+        y1 = min(mask.shape[0], region.top + region.side)
+        if x0 < x1 and y0 < y1:
+            clipped[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
+        mask = clipped
     kernel = np.ones((5, 5), dtype=np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -111,7 +123,7 @@ def run_webcam(camera_index: int = 0, *, stable_frames: int = 12) -> dict[str, A
             height, width = frame.shape[:2]
             side = max(3, int(min(width, height) * 0.62))
             rect = BoardRect((width - side) // 2, (height - side) // 2, side)
-            fingertip = detect_fingertip(frame)
+            fingertip = detect_fingertip(frame, rect)
             cell = cell_from_point(fingertip, rect)
             if cell is not None and cell in session.state()["legal_moves"]:
                 if cell == last_cell:

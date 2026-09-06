@@ -25,6 +25,11 @@ class WebcamMappingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             cell_from_point((1, True), self.board)
 
+    def test_detector_rejects_malformed_region_without_a_camera(self):
+        from robotlab.webcam import detect_fingertip
+        with self.assertRaises(ValueError):
+            detect_fingertip(None, region="board")
+
 
 if __name__ == "__main__":
     unittest.main()
