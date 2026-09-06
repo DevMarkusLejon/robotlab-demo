@@ -73,6 +73,20 @@ For a repeatable check instead of running the commands manually:
 bash simulation/ros2_ws/scripts/ros2_smoke_test.sh
 ```
 
+The smoke test now runs `scripts/guarded_motion.py`. Three synthetic pointing
+observations pass the intent and transport gates, then a small joint-space
+motion goes through the ROS2 action client. The executor validates the first
+segment against a fresh measured joint state, checks the controller result,
+and reads another joint state to verify the final target within 0.03 radians.
+A second run injects 100% packet loss and must return rejection without sending
+an action. Test-owned simulator processes are cleaned up as a process group.
+
+This is an execution-adapter test: the synthetic center-cell intent authorizes
+a 0.1-radian shoulder-pan movement and return, not a calibrated cell placement.
+It does not establish collision avoidance or object placement. The board-cell
+planner and object observer remain separate integration work. Run this script
+only against the simulation launched by the smoke test.
+
 ## Acceptance checks for the real bridge
 
 1. `joint_state_broadcaster` reports all six UR5e joints.

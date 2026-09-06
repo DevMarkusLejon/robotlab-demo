@@ -11,31 +11,40 @@ set -u
 set -o pipefail
 
 LOG_FILE="${TMPDIR:-/tmp}/robotlab-ros2-smoke.log"
-ros2 launch robotlab_ur5e_bringup ur5e_gz_ros2.launch.py >"${LOG_FILE}" 2>&1 &
+EVIDENCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/robotlab-motion.XXXXXX")"
+setsid ros2 launch robotlab_ur5e_bringup ur5e_gz_ros2.launch.py >"${LOG_FILE}" 2>&1 &
 LAUNCH_PID=$!
 cleanup() {
-  kill -INT "${LAUNCH_PID}" 2>/dev/null || true
+  kill -INT -- "-${LAUNCH_PID}" 2>/dev/null || true
+  sleep 2
+  kill -TERM -- "-${LAUNCH_PID}" 2>/dev/null || true
+  sleep 1
+  kill -KILL -- "-${LAUNCH_PID}" 2>/dev/null || true
   wait "${LAUNCH_PID}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
-for _attempt in $(seq 1 40); do
-  if ros2 control list_controllers 2>/dev/null | grep -q "ur5e_arm_controller.*active"; then
-    break
-  fi
-  sleep 0.5
-done
-
-if ! ros2 control list_controllers | grep -q "ur5e_arm_controller.*active"; then
-  cat "${LOG_FILE}"
-  echo "UR5e trajectory controller did not become active" >&2
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+timeout 45 python3 "${SCRIPT_DIR}/guarded_motion.py" --telemetry "${EVIDENCE_DIR}/success.jsonl"
+set +e
+timeout 45 python3 "${SCRIPT_DIR}/guarded_motion.py" --drop-rate 1.0 --telemetry "${EVIDENCE_DIR}/rejected.jsonl"
+REJECTION_STATUS=$?
+set -e
+if [ "${REJECTION_STATUS}" -ne 2 ]; then
+  echo "Expected packet-loss rejection (exit 2), got ${REJECTION_STATUS}" >&2
   exit 1
 fi
-
-ros2 action send_goal /ur5e_arm_controller/follow_joint_trajectory \
-  control_msgs/action/FollowJointTrajectory \
-  '{trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_1_joint, wrist_2_joint, wrist_3_joint], points: [{positions: [0.0, -1.57, 0.0, -1.57, 0.0, 0.0], time_from_start: {sec: 1}}, {positions: [0.0, -0.5574, 1.3708, -0.8133, 0.0, 0.0], time_from_start: {sec: 4}}]}}' \
-  | tee "${LOG_FILE}.goal"
-
-grep -q "Goal finished with status: SUCCEEDED" "${LOG_FILE}.goal"
+python3 - "${EVIDENCE_DIR}" <<'PY'
+import json
+import pathlib
+import sys
+root = pathlib.Path(sys.argv[1])
+success = [json.loads(line) for line in (root / 'success.jsonl').read_text().splitlines()]
+rejected = [json.loads(line) for line in (root / 'rejected.jsonl').read_text().splitlines()]
+observations = [e for e in success if e['event'] == 'joint_target_observed']
+assert len(observations) == 2 and all(e['accepted'] for e in observations)
+assert any(e['event'] == 'transport_rejected' for e in rejected)
+assert not any(e['event'] == 'execution_started' for e in rejected)
+print('Evidence:', root)
+PY
 echo "ROS2 UR5e smoke test passed"
