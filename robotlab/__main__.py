@@ -61,12 +61,20 @@ def main():
     commands.add_parser("play", help="Play X against the simulated robot")
     serve = commands.add_parser("serve", help="Serve the loopback JSON API")
     serve.add_argument("--port", type=int, default=8765)
+    webcam = commands.add_parser("webcam", help="Play X by pointing at cells through a webcam")
+    webcam.add_argument("--camera", type=int, default=0, help="OpenCV camera index (default: 0)")
+    webcam.add_argument("--stable-frames", type=int, default=12,
+                        help="Frames a pointing position must remain stable (default: 12)")
     args = parser.parse_args()
     try:
         if args.command == "serve":
             with make_server(args.port) as server:
                 print(f"SIMULATION ONLY: http://127.0.0.1:{server.server_port}/state", flush=True)
                 server.serve_forever()
+        elif args.command == "webcam":
+            from .webcam import run_webcam
+            result = run_webcam(args.camera, stable_frames=args.stable_frames)
+            print(json.dumps(result["final_state"], ensure_ascii=False))
         else:
             trace = play(interactive=args.command == "play")
             if args.command == "demo" and args.output:

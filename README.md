@@ -13,9 +13,17 @@ python -m unittest discover -s tests -v
 python -m robotlab demo --output artifacts/demo.json
 python -m robotlab play
 python -m robotlab serve --port 8765
+python -m pip install -e ".[webcam]"
+python -m robotlab webcam
 ```
 
 `serve` binder bara till `127.0.0.1`. Läs `GET /health` och `GET /state`. Skicka ett kommando som hämtats från aktuell state till `POST /commands` med `Content-Type: application/json` och exakt `Content-Length`. Exempel:
+
+## Webcam-exempel
+
+Installera det valfria OpenCV-tillägget och kör `python -m robotlab webcam`. Ett fönster visar kamerabilden och ett virtuellt bräde. Håll handen så att fingertoppen ligger över en tom ruta i ungefär tolv bildrutor; då spelar du X. Den simulerade roboten svarar som O. Tryck Q eller Escape för att avsluta.
+
+Detta är en enkel ljus-/hudfärgebaserad fingertoppsdetektor för en lokal prototyp. Den skickar inga bilder över nätet, gör ingen identitets- eller säkerhetsbedömning och driver ingen fysisk robot. Anpassa belysning och `--stable-frames` vid behov.
 
 ```json
 {

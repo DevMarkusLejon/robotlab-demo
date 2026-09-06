@@ -9,6 +9,9 @@ description = "Simulation and integration starting point for the RobotLab remote
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+webcam = ["opencv-python>=4.8"]
+
 [project.scripts]
 robotlab-demo = "robotlab.__main__:main"
 
