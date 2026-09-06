@@ -2,6 +2,8 @@
 
 This replaces the toy 3-DOF arm with a six-joint UR5e-shaped reference model. It is a vertical slice of the intended RobotLab product: a human target becomes a guarded trajectory, Gazebo executes it, and JSONL telemetry records what happened.
 
+Open `dashboard.html` in a browser for the accompanying pitch surface. It makes the execution stages visible: intent, transport, safety, trajectory, and observer confirmation.
+
 ## Run
 
 Use WSL2 Ubuntu 22.04. ROS 2 is not required for this first vertical slice; the `gz topic` transport is intentionally kept behind a small executor seam so it can be replaced by `gz_ros2_control` and MoveIt 2 when the hardware and ROS distribution are confirmed.
@@ -25,6 +27,8 @@ python3 simulation/ur5e/ur5e_demo.py
 ```
 
 The driver checks joint limits, finite values, monotonic timestamps, and maximum joint speed before publishing anything. It records `demo_started`, `trajectory_checked`, `trajectory_point`, `placement_verified`, and `demo_completed` in `artifacts/ur5e-events.jsonl`. The current placement verification is a simulation observer seam; a real version must consume camera or gripper feedback before claiming success.
+
+`robotlab.intent.IntentGate`, `robotlab.network.NetworkSimulator`, and `robotlab.pipeline.SharedAutonomyPipeline` are dependency-free seams for the camera, unreliable transport, and execution adapter. They are covered by tests and can be connected to the existing MediaPipe webcam loop without changing the game rules.
 
 ## Product path
 

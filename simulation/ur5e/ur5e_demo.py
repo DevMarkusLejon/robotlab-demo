@@ -79,7 +79,7 @@ def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder) -> Non
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cell", type=int, choices=range(9), help="run one target cell")
-    parser.add_argument("--settle", type=float, default=0.8, help="seconds between trajectory points")
+    parser.add_argument("--settle", type=float, default=1.0, help="seconds between trajectory points")
     parser.add_argument("--telemetry", type=Path, default=Path("artifacts/ur5e-events.jsonl"))
     args = parser.parse_args()
     if args.settle <= 0:

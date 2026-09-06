@@ -32,7 +32,7 @@ Det finns också en fristående Gazebo Harmonic-värld med en enkel 3-DOF-arm oc
 
 ## UR5e-referens och säker körkedja
 
-Den mer realistiska vertikala skivan finns i [simulation/ur5e](simulation/ur5e). Den använder en sexledad UR5e-referensmodell, ett overhead-kamerasensorgränssnitt, en separat målplanerare, en säkerhetsgate för ledgränser/hastighet och JSONL-telemetri. Kör `gz sim simulation/ur5e/world.sdf` och därefter `python3 simulation/ur5e/ur5e_demo.py --cell 4` i WSL2. Perception och hårdvaruadapter är avsiktligt separerade från exekveringen så att vi kan byta in riktig kamera, MoveIt 2 och `gz_ros2_control` när robot och ROS-miljö är bekräftade.
+Den mer realistiska vertikala skivan finns i [simulation/ur5e](simulation/ur5e). Den använder en sexledad UR5e-referensmodell, ett overhead-kamerasensorgränssnitt, en separat målplanerare, en säkerhetsgate för ledgränser/hastighet, simulerad nätverksfördröjning/paketförlust och JSONL-telemetri. [dashboard.html](simulation/ur5e/dashboard.html) visar samma steg som en säljdemo. Kör `gz sim simulation/ur5e/world.sdf` och därefter `python3 simulation/ur5e/ur5e_demo.py --cell 4` i WSL2. Perception och hårdvaruadapter är avsiktligt separerade från exekveringen så att vi kan byta in riktig kamera, MoveIt 2 och `gz_ros2_control` när robot och ROS-miljö är bekräftade.
 
 ```json
 {
