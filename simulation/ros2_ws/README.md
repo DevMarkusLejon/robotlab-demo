@@ -1,4 +1,4 @@
-# ROS 2 / MoveIt 2 integration scaffold
+# ROS 2 / MoveIt 2 UR5e simulation
 
 This directory is the handoff point from the working Gazebo transport demo to a
 production-shaped ROS 2 stack. It deliberately does not vendor Universal
@@ -15,10 +15,9 @@ built with `colcon`.
 - `joint_trajectory_controller` for the six-joint command contract
 - MoveIt 2 for collision-aware planning and execution
 
-The current `simulation/ur5e/world.sdf` remains useful as a lightweight
-reference world. The next integration should spawn the official `ur5e` xacro
-inside that world, attach the controller configuration in `config/`, and route
-the `SharedAutonomyPipeline` trajectory through a MoveIt action client.
+The ROS2 simulation spawns the official `ur5e` xacro and uses the controller
+configuration in `config/`. The older `simulation/ur5e/world.sdf` remains a
+separate lightweight reference world with simplified geometry.
 
 ## Planned build on a ROS 2 host
 
@@ -32,8 +31,8 @@ source install/setup.bash
 
 The package in `src/robotlab_ur5e_bringup` contains the controller names and
 joint order used by the Python safety gate, plus the matching MoveIt
-`FollowJointTrajectory` contract. It is intentionally a scaffold until the
-exact URDF, world spawn arguments, and hardware namespace are agreed.
+`FollowJointTrajectory` contract. Physical-hardware namespaces and calibration
+still need to be configured when the real robot is available.
 
 The lightweight reference world uses Gazebo Harmonic (`gz-sim8`). The installed
 Humble `gz_ros2_control` binary targets the Ignition/Gazebo 6 generation, so
@@ -110,12 +109,45 @@ enclosing obstacle, requires contact evidence against that obstacle from
 MoveIt's state-validity service, and requires planning rejection. JSONL
 evidence is written to `artifacts/moveit-motion.jsonl`.
 
-This checks static-scene joint-space planning. It does not yet test a Cartesian
-board placement, gripper contact, a moving obstacle, or webcam integration.
+This checks static-scene joint-space planning. The cell-hover test below adds
+Cartesian tool goals. Neither test verifies gripper contact, a moving obstacle,
+or webcam integration.
 Planning uses an explicitly measured start state and wall-clock service
 timeouts; a shared simulation clock and a live scene sensor remain integration
 work. The installed Humble MoveIt process has also shown a shutdown crash;
 the test terminates its process group but does not claim clean MoveIt shutdown.
+
+## Tool hover above board cells
+
+`cell_motion.py` maps each of the nine cells to a pose above the actual SDF
+board, requests collision-aware inverse kinematics for downward-facing `tool0`,
+and executes an OMPL plan through the measured-start safety gate. It checks the
+tool position and orientation using forward kinematics of the observed joint
+positions, then returns home. This verifies a hover, not a placed token.
+
+```bash
+bash simulation/ros2_ws/scripts/moveit_smoke_test.sh --cell 4
+bash simulation/ros2_ws/scripts/moveit_smoke_test.sh --check-cells
+bash simulation/ros2_ws/scripts/moveit_smoke_test.sh --all-cells
+```
+
+The first command executes one cell. The second plans all nine without moving.
+The third executes all nine and checks each observed tool pose. Evidence is
+appended to `artifacts/cell-motion.jsonl`. Acceptance limits are 10 mm position
+error and 0.05 rad orientation error. The hover is 150 mm above the board's top
+surface; no gripper or tool extension is modeled yet.
+
+The ROS2 board is now 450 mm square, centered 450 mm ahead of the robot base.
+The original 620 mm board at x=280 mm had three cells outside the valid
+downward-tool workspace under the configured joint limits. The new layout is
+shared by the collision scene and simulator through the SDF. It is a simulation
+layout, not a measured calibration of the physical RobotLab table.
+
+Validation on 2026-09-06: all nine cell plans passed collision and joint-speed
+checks, followed by an executed nine-cell sweep and return home. Observed
+position errors ranged from 1.23 to 1.86 mm using simulated joint feedback and
+the official UR5e forward kinematics. These are simulation measurements, not
+physical robot accuracy measurements.
 
 ## Remaining acceptance checks
 

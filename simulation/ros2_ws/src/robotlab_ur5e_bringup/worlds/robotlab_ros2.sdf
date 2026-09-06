@@ -31,12 +31,11 @@
     </model>
     <model name="board">
       <static>true</static>
-      <pose>0.28 0 0.72 0 0 0</pose>
+      <pose>0.45 0 0.72 0 0 0</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>0.62 0.62 0.035</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.62 0.62 0.035</size></box></geometry><material><diffuse>0.03 0.22 0.27 1</diffuse></material></visual>
+        <collision name="collision"><geometry><box><size>0.45 0.45 0.035</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.45 0.45 0.035</size></box></geometry><material><diffuse>0.03 0.22 0.27 1</diffuse></material></visual>
       </link>
     </model>
   </world>
 </sdf>
-
