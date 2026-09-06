@@ -14,6 +14,7 @@ python -m robotlab demo --output artifacts/demo.json
 python -m robotlab play
 python -m robotlab serve --port 8765
 python -m pip install -e ".[webcam]"
+python -m robotlab download-model
 python -m robotlab webcam
 ```
 
@@ -21,9 +22,9 @@ python -m robotlab webcam
 
 ## Webcam-exempel
 
-Installera det valfria OpenCV-tillägget och kör `python -m robotlab webcam`. Ett fönster visar kamerabilden och ett virtuellt bräde. Håll handen så att fingertoppen ligger över en tom ruta i ungefär tolv bildrutor; då spelar du X. Den simulerade roboten svarar som O. Tryck Q eller Escape för att avsluta.
+Installera webcam-tillägget och kör `python -m robotlab webcam`. Ett fönster visar kamerabilden och ett virtuellt bräde. Håll upp pekfingret så att fingertoppen ligger över en tom ruta i ungefär tolv bildrutor; då spelar du X. Den simulerade roboten svarar som O. Tryck Q eller Escape för att avsluta.
 
-Detta är en enkel ljus-/hudfärgebaserad fingertoppsdetektor för en lokal prototyp. Den skickar inga bilder över nätet, gör ingen identitets- eller säkerhetsbedömning och driver ingen fysisk robot. Anpassa belysning och `--stable-frames` vid behov.
+Webcamläget använder MediaPipes förtränade Hand Landmarker-modell. Den använder handens 21 landmärken och pekfingrets fingertopp (landmark 8), så ansikte och huvud används inte för positionsspårning. Modellen laddas ner med `python -m robotlab download-model` från den officiella MediaPipe-modellservern. Bilderna analyseras lokalt och skickas inte över nätet. Detta gör ingen säkerhetsbedömning och driver ingen fysisk robot. Anpassa belysning och `--stable-frames` vid behov.
 
 ```json
 {

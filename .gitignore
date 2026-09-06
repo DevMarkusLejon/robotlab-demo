@@ -7,5 +7,6 @@ dist/
 .reference/
 .private/
 artifacts/
+models/
 .env
 .env.*

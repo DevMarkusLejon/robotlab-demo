@@ -8,6 +8,9 @@ OpenCV is imported lazily so the rest of the package stays dependency-free.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+import shutil
+import tempfile
 from typing import Any
 
 from .session import Session, make_command
@@ -44,48 +47,95 @@ def cell_from_point(point: tuple[int, int] | None, board: BoardRect) -> int | No
     return row * 3 + col
 
 
-def detect_fingertip(frame: Any, region: BoardRect | None = None) -> tuple[int, int] | None:
-    """Return the topmost point of the largest skin-colour contour.
+_DEFAULT_MODEL = Path(__file__).resolve().parents[1] / "models" / "hand_landmarker.task"
+_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 
-    This deliberately simple baseline is useful for a first demo in stable
-    lighting. It is not a safety-rated hand tracker; return None when no large
-    enough contour can be found and require the user to keep the hand visible.
-    When ``region`` is supplied, contours outside that rectangle are ignored.
-    The game uses this to avoid mistaking a face above the board for a hand.
+
+class HandTracker:
+    """MediaPipe Hand Landmarker wrapper (21 landmarks, no face segmentation)."""
+
+    def __init__(self, model_path: str | Path = _DEFAULT_MODEL):
+        self.model_path = Path(model_path)
+        if not self.model_path.is_file():
+            raise RuntimeError(
+                f"Hand model not found at {self.model_path}. "
+                "Run `python -m robotlab download-model` first."
+            )
+        try:
+            import mediapipe as mp
+            from mediapipe.tasks.python import BaseOptions
+            from mediapipe.tasks.python import vision
+        except ImportError as exc:
+            raise RuntimeError(
+                "Hand tracking needs MediaPipe. Install with: "
+                "python -m pip install -e \".[webcam,hand-model]\""
+            ) from exc
+        # Some Windows builds of the MediaPipe task runtime mishandle non-ASCII
+        # paths (the workspace is named Björn). Stage the bundle under the
+        # ASCII temp directory before passing it to the native runtime.
+        staged_model = Path(tempfile.gettempdir()) / "robotlab-hand-landmarker.task"
+        if (not staged_model.is_file() or
+                staged_model.stat().st_size != self.model_path.stat().st_size):
+            shutil.copyfile(self.model_path, staged_model)
+        self._mp = mp
+        options = vision.HandLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=str(staged_model)),
+            running_mode=vision.RunningMode.VIDEO,
+            num_hands=1,
+            min_hand_detection_confidence=0.55,
+            min_hand_presence_confidence=0.55,
+            min_tracking_confidence=0.55,
+        )
+        self._landmarker = vision.HandLandmarker.create_from_options(options)
+        self._last_timestamp_ms = -1
+
+    def close(self) -> None:
+        self._landmarker.close()
+
+    def __enter__(self) -> "HandTracker":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def detect(self, frame: Any, region: BoardRect | None = None,
+               timestamp_ms: int = 0) -> tuple[int, int] | None:
+        """Return the index fingertip pixel (landmark 8), filtered to region."""
+        if frame is None or getattr(frame, "ndim", 0) != 3:
+            raise ValueError("frame must be a BGR image")
+        if region is not None and not isinstance(region, BoardRect):
+            raise ValueError("region must be a BoardRect or None")
+        cv2 = _require_cv2()
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = self._mp.Image(image_format=self._mp.ImageFormat.SRGB, data=rgb)
+        timestamp_ms = max(int(timestamp_ms), self._last_timestamp_ms + 1)
+        self._last_timestamp_ms = timestamp_ms
+        result = self._landmarker.detect_for_video(image, timestamp_ms)
+        if not result.hand_landmarks:
+            return None
+        tip = result.hand_landmarks[0][8]  # INDEX_FINGER_TIP in MediaPipe's 21-point model.
+        point = (round(tip.x * frame.shape[1]), round(tip.y * frame.shape[0]))
+        if region is not None and cell_from_point(point, region) is None:
+            return None
+        return point
+
+
+def detect_fingertip(frame: Any, region: BoardRect | None = None,
+                     tracker: HandTracker | None = None,
+                     timestamp_ms: int = 0) -> tuple[int, int] | None:
+    """Detect a real hand landmark; kept as a small convenience API.
+
+    Pass a reused ``HandTracker`` in a video loop. Without one, this creates and
+    closes a tracker for one frame and is intended only for small experiments.
     """
-    cv2 = _require_cv2()
-    import numpy as np
-
     if frame is None or getattr(frame, "ndim", 0) != 3:
         raise ValueError("frame must be a BGR image")
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # Broad skin baseline; tune for the room and lighting during the demo.
-    mask = cv2.inRange(hsv, np.array([0, 35, 45], dtype=np.uint8),
-                       np.array([25, 255, 255], dtype=np.uint8))
-    if region is not None:
-        if not isinstance(region, BoardRect):
-            raise ValueError("region must be a BoardRect or None")
-        clipped = np.zeros_like(mask)
-        x0, y0 = max(0, region.left), max(0, region.top)
-        x1 = min(mask.shape[1], region.left + region.side)
-        y1 = min(mask.shape[0], region.top + region.side)
-        if x0 < x1 and y0 < y1:
-            clipped[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
-        mask = clipped
-    kernel = np.ones((5, 5), dtype=np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = [contour for contour in contours if cv2.contourArea(contour) >= 1200]
-    if not contours:
-        return None
-    contour = max(contours, key=cv2.contourArea)
-    points = contour.reshape(-1, 2)
-    # A raised/pointing hand normally has its fingertip near the contour top.
-    top_y = int(points[:, 1].min())
-    candidates = points[points[:, 1] <= top_y + max(4, int(frame.shape[0] * 0.015))]
-    x = int(round(float(candidates[:, 0].mean())))
-    return x, top_y
+    if region is not None and not isinstance(region, BoardRect):
+        raise ValueError("region must be a BoardRect or None")
+    if tracker is not None:
+        return tracker.detect(frame, region, timestamp_ms)
+    with HandTracker() as own_tracker:
+        return own_tracker.detect(frame, region, timestamp_ms)
 
 
 def _require_cv2():
@@ -99,7 +149,8 @@ def _require_cv2():
     return cv2
 
 
-def run_webcam(camera_index: int = 0, *, stable_frames: int = 12) -> dict[str, Any]:
+def run_webcam(camera_index: int = 0, *, stable_frames: int = 12,
+               model_path: str | Path = _DEFAULT_MODEL) -> dict[str, Any]:
     """Run the local webcam game until win/draw or the user presses Q/Esc."""
     if type(camera_index) is not int or camera_index < 0:
         raise ValueError("camera_index must be a nonnegative integer")
@@ -114,7 +165,8 @@ def run_webcam(camera_index: int = 0, *, stable_frames: int = 12) -> dict[str, A
     last_cell = None
     stable_count = 0
     message = "Point at a cell and hold steady"
-    try:
+    with HandTracker(model_path) as tracker:
+      try:
         while session.board.next_player == "X":
             ok, frame = capture.read()
             if not ok:
@@ -123,7 +175,9 @@ def run_webcam(camera_index: int = 0, *, stable_frames: int = 12) -> dict[str, A
             height, width = frame.shape[:2]
             side = max(3, int(min(width, height) * 0.62))
             rect = BoardRect((width - side) // 2, (height - side) // 2, side)
-            fingertip = detect_fingertip(frame, rect)
+            timestamp_ms = session.clock()
+            fingertip = detect_fingertip(frame, rect, tracker=tracker,
+                                         timestamp_ms=timestamp_ms)
             cell = cell_from_point(fingertip, rect)
             if cell is not None and cell in session.state()["legal_moves"]:
                 if cell == last_cell:
@@ -162,9 +216,23 @@ def run_webcam(camera_index: int = 0, *, stable_frames: int = 12) -> dict[str, A
                 cv2.waitKey(800)
         return {"simulation_only": True, "final_state": final_state,
                 "ended_by_user": not bool(final_state["winner"] or final_state["is_draw"])}
-    finally:
-        capture.release()
-        cv2.destroyAllWindows()
+      finally:
+          capture.release()
+          cv2.destroyAllWindows()
+
+
+def download_model(model_path: str | Path = _DEFAULT_MODEL) -> Path:
+    """Download the official MediaPipe float16 hand-landmarker bundle."""
+    from urllib.request import urlopen
+
+    destination = Path(model_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with urlopen(_MODEL_URL, timeout=30) as response:
+        data = response.read()
+    if len(data) < 1_000_000:
+        raise RuntimeError("Downloaded hand model is unexpectedly small")
+    destination.write_bytes(data)
+    return destination
 
 
 def _draw_frame(cv2, frame, rect, state, fingertip, message):

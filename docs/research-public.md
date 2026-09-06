@@ -64,6 +64,12 @@ En [WASP-uppdatering från 2026-05-08](https://wasp-sweden.org/updates-in-the-wa
 
 WARA Robotics är en separat arena med bland annat ABB och Ericsson. Dess publika testbäddar och gränssnitt ska inte automatiskt tillskrivas WARA-Ops eller Lundprojektet. [WASP: WARA Robotics](https://wasp-sweden.org/research/research-arenas/wara-robotics/).
 
+## Handspårning i webcam-exemplet
+
+Den första prototypen använde hudfärgssegmentering och kunde därför välja ett ansikte eller huvud. Den är ersatt av [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python), som använder en förtränad palm-/handmodell och returnerar 21 handlandmärken per upptäckt hand. Repo:t använder pekfingrets fingertopp (landmark 8) och väljer aldrig en punkt från ansiktsdetektion. Modellpaketet laddas lokalt från den officiella MediaPipe-modellservern av `python -m robotlab download-model`.
+
+Som alternativ verifierades [OpenCV:s MediaPipe-handmodell på Hugging Face](https://huggingface.co/opencv/handpose_estimation_mediapipe), som också beskriver 21 hand keypoints och bygger på palm detection. Den används inte som en extra runtime-dependency eftersom MediaPipe Tasks ger en färdig Python-video-loop med tracking och confidence-trösklar. Båda modellspåren är hand-/landmarkdetektion, inte en säkerhetsklassad robotstyrning.
+
 ## Uppgifter som återstår inför fysisk integration
 
 - Robotmodell, styrenhet, gripdon, använd SMC-commit och den startkonfiguration som faktiskt fungerade i kursprojektet.
