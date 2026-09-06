@@ -26,6 +26,10 @@ Installera webcam-tillägget och kör `python -m robotlab webcam`. Ett fönster 
 
 Webcamläget använder MediaPipes förtränade Hand Landmarker-modell. Den använder handens 21 landmärken och pekfingrets fingertopp (landmark 8), så ansikte och huvud används inte för positionsspårning. Modellen laddas ner med `python -m robotlab download-model` från den officiella MediaPipe-modellservern. Bilderna analyseras lokalt och skickas inte över nätet. Detta gör ingen säkerhetsbedömning och driver ingen fysisk robot. Anpassa belysning och `--stable-frames` vid behov.
 
+## Gazebo-simulering
+
+Det finns också en fristående Gazebo Harmonic-värld med en enkel 3-DOF-arm och ett 3×3-bräde. Den är ett konkret nästa steg från webcam-detektion till inspekterbar robotplanering: kör `simulation/gazebo/world.sdf` och styr sedan armen med `simulation/gazebo/play_demo.py`. Se [simuleringsguiden](simulation/gazebo/README.md) för WSL2-kommandon och cellnumrering. Den lokala Windows-miljön har inte Gazebo installerat, så XML och IK är validerade här men själva GUI-körningen behöver Gazebo i WSL2 eller Linux.
+
 ```json
 {
   "protocol_version": 1,
