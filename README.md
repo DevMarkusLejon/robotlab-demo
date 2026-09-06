@@ -30,6 +30,10 @@ Webcamläget använder MediaPipes förtränade Hand Landmarker-modell. Den anvä
 
 Det finns också en fristående Gazebo Harmonic-värld med en enkel 3-DOF-arm och ett 3×3-bräde. Den är ett konkret nästa steg från webcam-detektion till inspekterbar robotplanering: kör `simulation/gazebo/world.sdf` och styr sedan armen med `simulation/gazebo/play_demo.py`. Se [simuleringsguiden](simulation/gazebo/README.md) för WSL2-kommandon och cellnumrering. Den lokala Windows-miljön har inte Gazebo installerat, så XML och IK är validerade här men själva GUI-körningen behöver Gazebo i WSL2 eller Linux.
 
+## UR5e-referens och säker körkedja
+
+Den mer realistiska vertikala skivan finns i [simulation/ur5e](simulation/ur5e). Den använder en sexledad UR5e-referensmodell, ett overhead-kamerasensorgränssnitt, en separat målplanerare, en säkerhetsgate för ledgränser/hastighet och JSONL-telemetri. Kör `gz sim simulation/ur5e/world.sdf` och därefter `python3 simulation/ur5e/ur5e_demo.py --cell 4` i WSL2. Perception och hårdvaruadapter är avsiktligt separerade från exekveringen så att vi kan byta in riktig kamera, MoveIt 2 och `gz_ros2_control` när robot och ROS-miljö är bekräftade.
+
 ```json
 {
   "protocol_version": 1,
