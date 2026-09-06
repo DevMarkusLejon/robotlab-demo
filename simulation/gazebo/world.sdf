@@ -88,6 +88,7 @@
         <collision name="tool_collision"><geometry><cylinder><radius>0.055</radius><length>0.16</length></cylinder></geometry></collision>
       </link>
 
+      <joint name="base_anchor" type="fixed"><parent>world</parent><child>base_link</child></joint>
       <joint name="base_joint" type="revolute"><pose relative_to="base_link">0 0 0.34 0 0 0</pose><parent>base_link</parent><child>shoulder_link</child><axis><xyz>0 0 1</xyz><limit><lower>-3.14</lower><upper>3.14</upper></limit></axis></joint>
       <joint name="shoulder_joint" type="revolute"><pose relative_to="shoulder_link">0.42 0 0 0 0 0</pose><parent>shoulder_link</parent><child>elbow_link</child><axis><xyz>0 1 0</xyz><limit><lower>-2.3</lower><upper>2.3</upper></limit></axis></joint>
       <joint name="elbow_joint" type="revolute"><pose relative_to="elbow_link">0.32 0 0 0 0 0</pose><parent>elbow_link</parent><child>tool_link</child><axis><xyz>0 1 0</xyz><limit><lower>-2.6</lower><upper>2.6</upper></limit></axis></joint>
