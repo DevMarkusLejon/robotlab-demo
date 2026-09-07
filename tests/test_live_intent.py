@@ -42,3 +42,29 @@ class LiveIntentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.box.submit(self.frame(2, timestamp=1100), 1000)
         self.assertIsNone(self.box.take())
+
+    def test_pick_place_consumes_token_and_publishes_observed_board(self):
+        self.box = IntentMailbox(stable_frames=2, mode='pick_place')
+        self.box.submit(self.frame(1), 1000)
+        self.box.submit(self.frame(2), 1000)
+        self.assertEqual(self.box.take(), 4)
+        self.box.report_stage('camera_confirmation')
+        self.assertTrue(self.box.snapshot()['busy'])
+        self.assertEqual(self.box.snapshot()['board'], [''] * 9)
+        self.box.finish()
+        self.assertEqual(self.box.snapshot()['stage'], 'placement_verified')
+        self.assertEqual(self.box.snapshot()['board'][4], 'X')
+        for sequence, present in ((3, True), (4, False), (5, True), (6, True)):
+            self.assertEqual(self.box.submit(self.frame(sequence, present), 1000)['stage'], 'complete')
+        self.assertIsNone(self.box.take())
+
+    def test_failed_pick_stays_inhibited_after_hand_release(self):
+        self.box = IntentMailbox(stable_frames=2, mode='pick_place')
+        self.box.submit(self.frame(1), 1000)
+        self.box.submit(self.frame(2), 1000)
+        self.box.take()
+        self.box.finish(error=RuntimeError('camera_placement_not_confirmed'))
+        self.assertEqual(self.box.snapshot()['board'], [''] * 9)
+        self.box.submit(self.frame(3, False), 1000)
+        self.assertEqual(self.box.submit(self.frame(4), 1000)['stage'], 'failed')
+        self.assertIsNone(self.box.take())

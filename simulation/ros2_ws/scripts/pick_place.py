@@ -51,19 +51,10 @@ def suction(enabled):
                     '-p', f'data: {str(enabled).lower()}'], check=True, timeout=5)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--prepare-world', action='store_true')
-    parser.add_argument('--cell', type=int, choices=range(9), default=4)
-    args = parser.parse_args()
-    if args.prepare_world:
-        prepare_world()
-        return 0
-    import rclpy
-    rclpy.init()
-    node = rclpy.create_node('robotlab_pick_place')
-    recorder = TelemetryRecorder(ROOT / 'artifacts/pick-place.jsonl')
-    recorder.record('pick_place_started', cell=args.cell, verification='simulation_only')
+def execute_pick(cell, node, recorder, on_stage=None, camera=None):
+    if type(cell) is not int or not 0 <= cell < 9:
+        raise ValueError("invalid_cell")
+    recorder.record('pick_place_started', cell=cell, verification='simulation_only')
     try:
         executor = ROS2Executor(node, recorder)
         home = executor.current_positions(timeout=30)
@@ -75,15 +66,17 @@ def main():
             raise RuntimeError('unexpected_initial_token_state')
         set_token(planner, (SUPPLY[0], SUPPLY[1], SUPPLY[2] - 0.75))
         import cv2
-        camera = ROSBoardCamera(node)
+        camera = camera or ROSBoardCamera(node)
         baseline, frame = camera.observe(timeout=30)
         cv2.imwrite(str(ROOT / 'artifacts/pick-camera-before.png'), frame)
-        verifier = PlacementVerifier(baseline, cell=args.cell, symbol='X',
+        verifier = PlacementVerifier(baseline, cell=cell, symbol='X',
             commanded_at_ms=time.monotonic_ns() // 1_000_000)
         recorder.record('camera_baseline', frame_id=baseline.frame_id, cells=baseline.cells,
                         source='gazebo_rendered_camera')
 
         def move(xyz, stage):
+            if on_stage:
+                on_stage(stage)
             recorder.record('pick_stage', stage=stage, target_m=xyz)
             start = executor.current_positions()
             validity = planner.state_validity(start)
@@ -135,7 +128,7 @@ def main():
             raise RuntimeError('planner_ignored_payload_collision')
         recorder.record('payload_collision_rejection_verified', contacts=pairs)
         remove_scene_object(planner, 'payload_probe')
-        target = cell_tool_target(WORLD, args.cell, clearance=0.23)
+        target = cell_tool_target(WORLD, cell, clearance=0.23)
         move(target, 'transfer')
         # Release 4 mm above the board; settling must be independently observed.
         move((target[0], target[1], 0.0735), 'lower_to_board')
@@ -152,9 +145,13 @@ def main():
             state = gripper_state()
             if state['attached'] or math.dist(state['token_xyz'], expected) > 0.01:
                 raise RuntimeError(f'token_placement_mismatch:{state}')
-        recorder.record('simulation_placement_observed', cell=args.cell,
+        recorder.record('simulation_placement_observed', cell=cell,
                          verification='gazebo_object_pose', expected_xyz=expected, **state)
+        if on_stage:
+            on_stage('return_home')
         executor.execute(planner.plan_joints(executor.current_positions(), home))
+        if on_stage:
+            on_stage('camera_confirmation')
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
             observation, frame = camera.observe()
@@ -164,18 +161,34 @@ def main():
                             valid=observation.valid, reason=observation.reason,
                             frame_id=observation.frame_id, source='gazebo_rendered_camera')
             if result == 'verified':
-                recorder.record('placement_observed', cell=args.cell, symbol='X', accepted=True,
+                recorder.record('placement_observed', cell=cell, symbol='X', accepted=True,
                     verification='camera', source='gazebo_rendered_camera',
                     frame_id=observation.frame_id, cells=observation.cells, confirming_frames=verifier.stable)
                 break
         else:
             raise RuntimeError('camera_placement_not_confirmed')
-        recorder.record('pick_place_completed', cell=args.cell)
+        recorder.record('pick_place_completed', cell=cell)
         print('UR5e token transfer verified by rendered camera and Gazebo object state', flush=True)
         return 0
     except Exception as error:
-        recorder.record('pick_place_failed', cell=args.cell, reason=str(error))
+        recorder.record('pick_place_failed', cell=cell, reason=str(error))
         raise
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--prepare-world', action='store_true')
+    parser.add_argument('--cell', type=int, choices=range(9), default=4)
+    args = parser.parse_args()
+    if args.prepare_world:
+        prepare_world()
+        return 0
+    import rclpy
+    rclpy.init()
+    node = rclpy.create_node('robotlab_pick_place')
+    recorder = TelemetryRecorder(ROOT / 'artifacts/pick-place.jsonl')
+    try:
+        return execute_pick(args.cell, node, recorder)
     finally:
         node.destroy_node()
         rclpy.shutdown()

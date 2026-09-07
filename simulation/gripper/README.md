@@ -86,8 +86,10 @@ are saved in `artifacts/`. Camera confirmation passed for center cell 4 and
 corner cell 0 on 2026-09-07. Other carried-token placement cells remain unverified.
 
 Logs remain under `artifacts/` (`pick-place.jsonl`, `robotlab-pick.sdf`, and
-`moveit.*.log`). The live webcam bridge still runs hover mode; it is not yet
-connected to this one-token pickup experiment.
+`moveit.*.log`). `--live-pick-place` connects hand intent to this one-token
+pickup experiment and records to `live-robot.jsonl`. The synthetic Windows
+client test passed; manual pointing remains to be verified. The webcam UI
+shows the live simulated board camera beside the hand view.
 
 The command topic is `/robotlab/gripper/enable` (`ignition.msgs.Boolean`).
 `/robotlab/gripper/state` carries a JSON string containing attachment state,

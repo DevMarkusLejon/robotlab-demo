@@ -151,10 +151,11 @@ physical robot accuracy measurements.
 
 ## Live Windows webcam to UR5e
 
-Start the local receiver and simulator in WSL from the repository root:
+For camera-confirmed pick/place, start the receiver and simulator in WSL from
+the repository root (build the gripper plugin first as described below):
 
 ```bash
-bash simulation/ros2_ws/scripts/moveit_smoke_test.sh --live
+bash simulation/ros2_ws/scripts/moveit_smoke_test.sh --live-pick-place
 ```
 
 After `UR5e webcam receiver ready`, run this in a Windows terminal at the same
@@ -165,9 +166,18 @@ python -m robotlab.webcam_robot
 ```
 
 Point your index finger into the camera's overlaid grid and hold for roughly
-1.2 seconds. The selected cell becomes a downward-facing tool hover in Gazebo,
-followed by return to the starting pose. Move your hand out of the grid after
-the move finishes before selecting again. Q/Esc closes the webcam window;
+1.2 seconds. The robot picks up the red token, places it in the selected cell,
+returns home, and requires three camera frames to confirm the board change.
+The right panel shows the rendered Gazebo camera at up to 2 Hz; the left panel
+shows your hand. The displayed X is committed only after camera confirmation.
+An unavailable or stale camera preview is replaced by an explicit unavailable
+panel. The detector still uses the full camera stream for verification.
+
+This scene currently contains **one token**. Completion or a failed attempt
+inhibits further commands, including after releasing your hand. Stop and restart
+the WSL command to create a fresh scene for another trial. Multi-token games
+remain to be integrated. Use `--live` instead for the original repeatable hover
+experiment, which rearms after hand release. Q/Esc closes the webcam window;
 an already accepted simulated motion continues. Stop the WSL receiver with
 Ctrl+C after the motion has finished.
 
@@ -181,8 +191,10 @@ The client estimates the Windows/WSL clock offset; the receiver allows up to
 For a repeatable integration test, use a freshly started live receiver and run
 `python simulation/ros2_ws/scripts/live_bridge_smoke.py` from Windows. This
 sends **synthetic** observations, verifies completion through the status API,
-and checks that a held gesture is rejected until release. On 2026-09-06 this
-test passed against Gazebo; the separate real-camera check acquired an image
+and checks that repeated commands are rejected (until release for hover, until
+scene restart for pick/place). The pick/place path passed on 2026-09-07 through
+the Windows HTTP client, WSL receiver, MoveIt, controller, contact gripper, and
+rendered-camera verifier. The separate real-camera check acquired an image
 and ran MediaPipe successfully, with no hand in view. A manual pointing trial
 has therefore not yet been verified. Motion evidence is recorded in
 `artifacts/live-robot.jsonl`.
@@ -225,8 +237,9 @@ contact/carry/release physics fixture and an official UR5e wrapper with the
 cup included in collision geometry. `--gripper-check` verifies the mounted-cup
 hover after the plugin is built. `--pick-place 4` additionally runs robot-driven
 pickup, carried-payload collision rejection, and placement verified from both
-Gazebo token position and rendered overhead camera images. Live-webcam selection
-of pick/place remains to be connected.
+Gazebo token position and rendered overhead camera images. `--live-pick-place`
+connects the webcam-intent API to that same sequence; a manual hand trial and
+multi-token play remain unverified/incomplete.
 
 1. `joint_state_broadcaster` reports all six UR5e joints.
 2. MoveIt plans a collision-free approach, descend, retract trajectory for a

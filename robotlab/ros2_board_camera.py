@@ -11,15 +11,36 @@ class ROSBoardCamera:
         from rclpy.qos import QoSProfile, ReliabilityPolicy
         self.node = node
         self.latest = None
+        self.received_at = 0.0
         self.subscription = node.create_subscription(Image, TOPIC, self._receive,
             QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
 
     def _receive(self, message):
         self.latest = message
+        self.received_at = time.monotonic()
 
-    def observe(self, timeout=10):
+    def preview_jpeg(self):
+        import cv2
+        message = self.latest
+        if message is None or time.monotonic() - self.received_at > 1.0:
+            return None
+        ok, encoded = cv2.imencode('.jpg', self.decode(message))
+        return encoded.tobytes() if ok else None
+
+    @staticmethod
+    def decode(message):
         import cv2
         import numpy as np
+        if message.encoding not in ('rgb8', 'bgr8'):
+            raise RuntimeError(f'unsupported_camera_encoding:{message.encoding}')
+        rows = np.frombuffer(bytes(message.data), dtype=np.uint8).reshape(message.height, message.step)
+        frame = rows[:, :message.width * 3].reshape(message.height, message.width, 3).copy()
+        if message.encoding == 'rgb8':
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        # Match increasing world-y row numbering used by the robot.
+        return cv2.flip(frame, 0)
+
+    def observe(self, timeout=10):
         import rclpy
         # Discard queued frames from a preceding robot movement, then require
         # another sensor timestamp. A cached image cannot confirm placement.
@@ -31,15 +52,7 @@ class ROSBoardCamera:
             message = self.latest
             if message is None or self._stamp(message) == previous:
                 continue
-            if message.encoding not in ('rgb8', 'bgr8'):
-                raise RuntimeError(f'unsupported_camera_encoding:{message.encoding}')
-            rows = np.frombuffer(bytes(message.data), dtype=np.uint8).reshape(message.height, message.step)
-            frame = rows[:, :message.width * 3].reshape(message.height, message.width, 3).copy()
-            if message.encoding == 'rgb8':
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            # Overhead optical y points toward -world-y. Mirror vertically so
-            # display rows match cell_tool_target's increasing world-y rows.
-            frame = cv2.flip(frame, 0)
+            frame = self.decode(message)
             now = time.monotonic_ns() // 1_000_000
             observation = observe_tokens(frame, board_calibration(),
                 frame_id=f'gazebo:{self._stamp(message)}', timestamp_ms=now)

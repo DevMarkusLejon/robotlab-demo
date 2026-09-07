@@ -7,11 +7,11 @@ set -uo pipefail
 mkdir -p "${SCRIPT_DIR}/../../../artifacts"
 LOG_FILE="$(mktemp "${SCRIPT_DIR}/../../../artifacts/moveit.XXXXXX.log")"
 LAUNCH_EXTRA=()
-if [ "${1:-}" = "--gripper-check" ] || [ "${1:-}" = "--pick-place" ]; then
+if [ "${1:-}" = "--gripper-check" ] || [ "${1:-}" = "--pick-place" ] || [ "${1:-}" = "--live-pick-place" ]; then
   export IGN_GAZEBO_SYSTEM_PLUGIN_PATH="$(realpath "${SCRIPT_DIR}/../../gripper/build")"
   LAUNCH_EXTRA+=("description_file:=$(realpath "${SCRIPT_DIR}/../src/robotlab_ur5e_bringup/urdf/ur5e_vacuum.urdf.xacro")")
 fi
-if [ "${1:-}" = "--pick-place" ]; then
+if [ "${1:-}" = "--pick-place" ] || [ "${1:-}" = "--live-pick-place" ]; then
   python3 "${SCRIPT_DIR}/pick_place.py" --prepare-world
   LAUNCH_EXTRA+=("world_file:=$(realpath "${SCRIPT_DIR}/../../../artifacts/robotlab-pick.sdf")")
 fi
@@ -33,6 +33,8 @@ elif [ "${1:-}" = "--gripper-check" ]; then
   timeout 120 python3 "${SCRIPT_DIR}/cell_motion.py" --cell 4
 elif [ "${1:-}" = "--live" ]; then
   python3 "${SCRIPT_DIR}/live_robot.py"
+elif [ "${1:-}" = "--live-pick-place" ]; then
+  python3 "${SCRIPT_DIR}/live_robot.py" --pick-place
 elif [ "${1:-}" = "--cell" ]; then
   timeout 120 python3 "${SCRIPT_DIR}/cell_motion.py" --cell "${2:-4}"
 elif [ "${1:-}" = "--check-cells" ]; then

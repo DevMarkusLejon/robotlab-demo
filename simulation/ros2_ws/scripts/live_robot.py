@@ -1,5 +1,6 @@
 """Loopback-only webcam intent receiver and single UR5e simulation worker."""
 import json
+import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import sys
@@ -16,11 +17,16 @@ from robotlab.telemetry import TelemetryRecorder
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--pick-place', action='store_true')
+    args = parser.parse_args()
     import rclpy
     rclpy.init()
     node = rclpy.create_node('robotlab_live_intent')
-    mailbox = IntentMailbox()
+    mailbox = IntentMailbox(mode='pick_place' if args.pick_place else 'hover')
     recorder = TelemetryRecorder(ROOT / 'artifacts/live-robot.jsonl')
+    from robotlab.ros2_board_camera import ROSBoardCamera
+    camera = ROSBoardCamera(node) if args.pick_place else None
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -35,6 +41,18 @@ def main():
             self.wfile.write(body)
 
         def do_GET(self):
+            if self.path == '/camera.jpg' and camera:
+                frame = camera.preview_jpeg()
+                if frame is None:
+                    self.reply(503, {'error': 'camera_frame_unavailable'})
+                    return
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/jpeg')
+                self.send_header('Content-Length', str(len(frame)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(frame)
+                return
             self.reply(200 if self.path == '/status' else 404,
                        mailbox.snapshot() if self.path == '/status' else {'error': 'not_found'})
 
@@ -72,18 +90,26 @@ def main():
                 continue
             try:
                 recorder.record('live_intent_accepted', cell=cell)
-                error = hover_cell(executor, planner, world, cell, recorder)
-                recorder.record('live_hover_completed', cell=cell, position_error_m=error)
+                if args.pick_place:
+                    from pick_place import execute_pick
+                    execute_pick(cell, node, recorder, on_stage=mailbox.report_stage, camera=camera)
+                    recorder.record('live_pick_place_completed', cell=cell)
+                else:
+                    error = hover_cell(executor, planner, world, cell, recorder)
+                    recorder.record('live_hover_completed', cell=cell, position_error_m=error)
                 mailbox.finish()
-            except RuntimeError as error:
-                recorder.record('live_hover_failed', cell=cell, reason=str(error))
+            except Exception as error:
+                recorder.record('live_execution_failed', cell=cell, reason=str(error))
                 mailbox.finish(error=error)
+    except KeyboardInterrupt:
+        pass
     finally:
         if server:
             server.shutdown()
             server.server_close()
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
