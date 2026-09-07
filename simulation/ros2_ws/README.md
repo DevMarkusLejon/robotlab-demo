@@ -149,6 +149,75 @@ position errors ranged from 1.23 to 1.86 mm using simulated joint feedback and
 the official UR5e forward kinematics. These are simulation measurements, not
 physical robot accuracy measurements.
 
+## Live Windows webcam to UR5e
+
+Start the local receiver and simulator in WSL from the repository root:
+
+```bash
+bash simulation/ros2_ws/scripts/moveit_smoke_test.sh --live
+```
+
+After `UR5e webcam receiver ready`, run this in a Windows terminal at the same
+repository root (the current Windows Python already has the webcam packages):
+
+```powershell
+python -m robotlab.webcam_robot
+```
+
+Point your index finger into the camera's overlaid grid and hold for roughly
+1.2 seconds. The selected cell becomes a downward-facing tool hover in Gazebo,
+followed by return to the starting pose. Move your hand out of the grid after
+the move finishes before selecting again. Q/Esc closes the webcam window;
+an already accepted simulated motion continues. Stop the WSL receiver with
+Ctrl+C after the motion has finished.
+
+The bridge only listens on `127.0.0.1:8766`. Images stay in the Windows camera
+process; only normalized hand observations are sent. The receiver checks
+confidence, gesture, frame freshness, increasing sequence numbers and a server
+run ID. It accepts one motion at a time and does not queue gestures while busy.
+The client estimates the Windows/WSL clock offset; the receiver allows up to
+50 ms estimation error toward the future and rejects frames older than 500 ms.
+
+For a repeatable integration test, use a freshly started live receiver and run
+`python simulation/ros2_ws/scripts/live_bridge_smoke.py` from Windows. This
+sends **synthetic** observations, verifies completion through the status API,
+and checks that a held gesture is rejected until release. On 2026-09-06 this
+test passed against Gazebo; the separate real-camera check acquired an image
+and ran MediaPipe successfully, with no hand in view. A manual pointing trial
+has therefore not yet been verified. Motion evidence is recorded in
+`artifacts/live-robot.jsonl`.
+
+## Independent camera placement observer
+
+`robotlab.board_observer` detects matte round red (X) and blue (O) tokens in a
+four-corner calibrated camera view. A placement requires an initially empty
+target, a fresh baseline, and three distinct fresh frames showing exactly the
+expected board change. Wrong cells, extra changes, ambiguous shapes, tokens
+across grid boundaries, duplicate frames and stale observations cannot confirm
+placement. The interactive runner also rejects frames containing a detected
+hand.
+
+Save measured camera corners as `corners_px` in top-left, top-right,
+bottom-right, bottom-left order, as described by the calibration example. Then
+run from Windows (close the hand-control camera window first):
+
+```powershell
+python -m robotlab.observe_board --calibration YOUR_CALIBRATION.json --cell 4 --symbol X
+```
+
+Press B with the intended cell empty and hands out of view. Manually place a
+red round token in the center cell, then remove your hand. Verified observations
+go to `artifacts/board-observer.jsonl`. This is a separate manual perception
+experiment, not an automated robot pick/place. The detector has been tested on
+synthetic token images and invalid/replayed observations; physical token images
+and a robot-driven placement have not yet been validated. Stable lighting and
+camera position are assumed; calibration drift is not automatically detected.
+
+The lightweight demo no longer emits placeholder placement success. Metrics
+ignore its old `simulated_scene_observer` events, and return an unavailable
+placement rate when no camera observation exists. The static pitch dashboard
+is explicitly labeled as an illustrative mockup.
+
 ## Remaining acceptance checks
 
 1. `joint_state_broadcaster` reports all six UR5e joints.

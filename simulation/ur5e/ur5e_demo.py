@@ -80,7 +80,8 @@ def execute_trajectory(cell: int, plan: tuple[JointPoint, ...],
         recorder.record("trajectory_point", cell=cell, index=index, time_s=point.time_s,
                         joints=dict(zip(UR5E_JOINTS, point.positions)))
         time.sleep(settle_s)
-    recorder.record("placement_verified", cell=cell, verification="simulated_scene_observer")
+    recorder.record("trajectory_commands_sent", cell=cell,
+                    verification="unobserved", placement_verified=False)
 
 
 def execute_cell(cell: int, settle_s: float, recorder: TelemetryRecorder,

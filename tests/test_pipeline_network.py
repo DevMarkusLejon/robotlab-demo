@@ -21,6 +21,18 @@ class NetworkTests(unittest.TestCase):
         ])
         self.assertEqual(summary["trajectory_acceptance_rate"], 1.0)
         self.assertEqual(summary["transport_latency_p95_ms"], 80.0)
+        self.assertIsNone(summary['placement_verification_rate'])
+
+    def test_placement_metric_requires_camera_evidence(self):
+        result = summarize_events([
+            {'event': 'placement_verified', 'verification': 'simulated_scene_observer'},
+            {'event': 'placement_observed', 'verification': 'camera',
+             'frame_id': 'frame-1', 'accepted': True},
+            {'event': 'placement_observed', 'verification': 'camera',
+             'frame_id': 'frame-2', 'accepted': False},
+        ])
+        self.assertEqual(result['placement_observations'], 2)
+        self.assertEqual(result['placement_verification_rate'], 0.5)
 
     def test_delivers_within_deadline_and_rejects_expiry(self):
         network = NetworkSimulator(latency_ms=50)

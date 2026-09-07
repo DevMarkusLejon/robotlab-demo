@@ -17,7 +17,9 @@ cleanup() {
   echo "MoveIt log: ${LOG_FILE}"
 }
 trap cleanup EXIT
-if [ "${1:-}" = "--cell" ]; then
+if [ "${1:-}" = "--live" ]; then
+  python3 "${SCRIPT_DIR}/live_robot.py"
+elif [ "${1:-}" = "--cell" ]; then
   timeout 120 python3 "${SCRIPT_DIR}/cell_motion.py" --cell "${2:-4}"
 elif [ "${1:-}" = "--check-cells" ]; then
   timeout 120 python3 "${SCRIPT_DIR}/cell_motion.py" --check-cells

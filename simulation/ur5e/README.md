@@ -65,7 +65,7 @@ The first command records the modeled delivery latency before a command is
 published. The second demonstrates a fail-closed packet-loss rejection. Both
 outcomes are written to the JSONL event stream.
 
-The driver checks joint limits, finite values, monotonic timestamps, and maximum joint speed before publishing anything. It records `demo_started`, `trajectory_checked`, `trajectory_point`, `placement_verified`, and `demo_completed` in `artifacts/ur5e-events.jsonl`. The current placement verification is a simulation observer seam; a real version must consume camera or gripper feedback before claiming success.
+The driver checks joint limits, finite values, monotonic timestamps, and maximum joint speed before publishing anything. It records `demo_started`, `trajectory_checked`, `trajectory_point`, `trajectory_commands_sent`, and `demo_completed` in `artifacts/ur5e-events.jsonl`. This transport-only driver has no motion or placement observer: completion means the commands were sent. Use the ROS2 path for measured motion verification; placement still needs camera or gripper evidence. Older logs containing `verification="simulated_scene_observer"` are placeholders and are not placement evidence.
 
 `robotlab.intent.IntentGate`, `robotlab.network.NetworkSimulator`, and `robotlab.pipeline.SharedAutonomyPipeline` are dependency-free seams for the camera, unreliable transport, and execution adapter. They are covered by tests and can be connected to the existing MediaPipe webcam loop without changing the game rules.
 
