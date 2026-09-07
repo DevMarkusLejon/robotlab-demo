@@ -18,7 +18,8 @@ def generate_launch_description():
     controllers = package_share / "config" / "ur5e_controllers.yaml"
     xacro = ur_share / "urdf" / "ur.urdf.xacro"
     robot_description = Command([
-        FindExecutable(name="xacro"), " ", LaunchConfiguration('description_file'),
+        FindExecutable(name="python3"), " ", str(package_share / 'urdf/render_description.py'),
+        " ", LaunchConfiguration('description_file'),
         " ur_type:=ur5e name:=ur5e_reference sim_ignition:=true",
         " simulation_controllers:=", str(controllers),
     ])
@@ -27,7 +28,7 @@ def generate_launch_description():
         launch_arguments={
             # Headless keeps this launch usable in CI and WSL sessions without
             # an Ogre/EGL display. Start `ign gazebo` separately for a GUI.
-            "gz_args": f"-s -r {world}",
+            "gz_args": ["-s -r ", LaunchConfiguration('world_file')],
             "gz_version": "6",
         }.items(),
     )
@@ -55,6 +56,7 @@ def generate_launch_description():
     ])
     return LaunchDescription([
         DeclareLaunchArgument('description_file', default_value=str(xacro)),
+        DeclareLaunchArgument('world_file', default_value=str(world)),
         gazebo,
         state_publisher,
         TimerAction(period=3.0, actions=[spawn]),

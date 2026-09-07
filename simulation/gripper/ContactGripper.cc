@@ -5,6 +5,7 @@
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
 #include <ignition/gazebo/components/ContactSensorData.hh>
+#include <ignition/gazebo/components/Collision.hh>
 #include <ignition/gazebo/components/DetachableJoint.hh>
 #include <ignition/gazebo/components/Name.hh>
 #include <ignition/gazebo/components/ParentEntity.hh>
@@ -25,13 +26,20 @@ class ContactGripper : public sim::System, public sim::ISystemConfigure,
     parent = sim::Model(entity).LinkByName(ecm, sdf->Get<std::string>("parent_link"));
     childName = sdf->Get<std::string>("child_model");
     childLinkName = sdf->Get<std::string>("child_link");
-    collisionName = sdf->Get<std::string>("contact_collision");
     node.Subscribe("/robotlab/gripper/enable", &ContactGripper::Enable, this);
     publisher = node.Advertise<ignition::msgs::StringMsg>("/robotlab/gripper/state");
   }
   void Enable(const ignition::msgs::Boolean &msg) { enabled.store(msg.data()); }
   void PreUpdate(const sim::UpdateInfo &info, sim::EntityComponentManager &ecm) override {
     if (info.paused || parent == sim::kNullEntity) return;
+    // Enable physics contact reporting on the actual cup collisions. URDF
+    // conversion may rename them when fixed links are lumped.
+    ecm.Each<comp::Collision, comp::ParentEntity>(
+      [&](const sim::Entity &entity, const comp::Collision *, const comp::ParentEntity *owner) {
+        if (owner->Data() == parent && !ecm.Component<comp::ContactSensorData>(entity))
+          ecm.CreateComponent(entity, comp::ContactSensorData());
+        return true;
+      });
     if (child == sim::kNullEntity) {
       auto model = ecm.EntityByComponents(comp::Model(), comp::Name(childName));
       if (model != sim::kNullEntity) child = sim::Model(model).LinkByName(ecm, childLinkName);
@@ -41,7 +49,7 @@ class ContactGripper : public sim::System, public sim::ISystemConfigure,
     ecm.Each<comp::ContactSensorData, comp::Name, comp::ParentEntity>(
       [&](const sim::Entity &, const comp::ContactSensorData *data,
           const comp::Name *name, const comp::ParentEntity *owner) {
-        if (name->Data() != collisionName || owner->Data() != parent) return true;
+        if (owner->Data() != parent) return true;
         for (const auto &pair : data->Data().contact()) {
           ++pairs;
           auto first = ecm.Component<comp::ParentEntity>(pair.collision1().id());
@@ -85,7 +93,7 @@ class ContactGripper : public sim::System, public sim::ISystemConfigure,
   }
  private:
   sim::Entity parent{sim::kNullEntity}, child{sim::kNullEntity}, joint{sim::kNullEntity};
-  std::string childName, childLinkName, collisionName;
+  std::string childName, childLinkName;
   std::atomic<bool> enabled{false};
   int contactSteps{0}, contactsAtAttach{0};
   std::chrono::steady_clock::duration lastReport{0};

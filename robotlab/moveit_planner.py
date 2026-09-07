@@ -90,6 +90,7 @@ class MoveItPlanner:
         motion.max_acceleration_scaling_factor = 0.1
         motion.start_state.joint_state.name = list(UR5E_JOINTS)
         motion.start_state.joint_state.position = list(start)
+        motion.start_state.is_diff = True  # Preserve attached payloads from the scene.
         goal = Constraints()
         for joint, value in zip(UR5E_JOINTS, target):
             goal.joint_constraints.append(JointConstraint(joint_name=joint, position=float(value),
@@ -118,6 +119,7 @@ class MoveItPlanner:
         request.group_name = 'ur_manipulator'
         request.robot_state.joint_state.name = list(UR5E_JOINTS)
         request.robot_state.joint_state.position = list(positions)
+        request.robot_state.is_diff = True
         return self.call(GetStateValidity, '/check_state_validity', request)
 
     def tool_pose(self, positions):
@@ -145,6 +147,7 @@ class MoveItPlanner:
         ik.timeout.sec = 3
         ik.robot_state.joint_state.name = list(UR5E_JOINTS)
         ik.robot_state.joint_state.position = list(seed)
+        ik.robot_state.is_diff = True
         ik.pose_stamped.header.frame_id = 'base_link'
         pose = ik.pose_stamped.pose
         pose.position.x, pose.position.y, pose.position.z = xyz

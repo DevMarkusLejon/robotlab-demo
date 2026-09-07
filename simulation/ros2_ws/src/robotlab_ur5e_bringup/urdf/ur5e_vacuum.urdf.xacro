@@ -12,16 +12,8 @@
   </link>
   <joint name="vacuum_mount" type="fixed"><parent link="tool0"/><child link="vacuum_cup"/></joint>
   <gazebo reference="vacuum_mount"><preserveFixedJoint>true</preserveFixedJoint></gazebo>
-  <gazebo reference="vacuum_cup">
-    <sensor name="cup_contact" type="contact"><always_on>true</always_on><update_rate>100</update_rate>
-      <!-- libsdformat renames this collision while lumping the tool0 link. -->
-      <contact><collision>vacuum_cup_fixed_joint_lump__cup_collision_collision</collision></contact>
-    </sensor>
-  </gazebo>
   <gazebo>
-    <plugin filename="ignition-gazebo-contact-system" name="ignition::gazebo::systems::Contact"/>
     <plugin filename="librobotlab_contact_gripper.so" name="robotlab::ContactGripper">
     <parent_link>vacuum_cup</parent_link><child_model>token</child_model><child_link>token_link</child_link>
-    <contact_collision>vacuum_cup_fixed_joint_lump__cup_collision_collision</contact_collision>
   </plugin></gazebo>
 </robot>

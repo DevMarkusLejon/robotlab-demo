@@ -16,7 +16,8 @@ def generate_launch_description():
     ur = Path(get_package_share_directory('ur_description'))
     moveit = Path(get_package_share_directory('ur_moveit_config'))
     description_file = LaunchConfiguration('description_file')
-    description = Command([FindExecutable(name='xacro'), ' ', description_file,
+    description = Command([FindExecutable(name='python3'), ' ', str(own / 'urdf/render_description.py'),
+        ' ', description_file,
         ' ur_type:=ur5e name:=ur sim_ignition:=true simulation_controllers:=',
         str(own / 'config/ur5e_controllers.yaml')])
     semantic = Command([FindExecutable(name='xacro'), ' ', str(moveit / 'srdf/ur.srdf.xacro'),
@@ -27,8 +28,10 @@ def generate_launch_description():
         start_state_max_bounds_error=0.01)
     return LaunchDescription([
         DeclareLaunchArgument('description_file', default_value=str(ur / 'urdf/ur.urdf.xacro')),
+        DeclareLaunchArgument('world_file', default_value=str(own / 'worlds/robotlab_ros2.sdf')),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(str(own / 'launch/ur5e_gz_ros2.launch.py')),
-                                 launch_arguments={'description_file': description_file}.items()),
+                                 launch_arguments={'description_file': description_file,
+                                    'world_file': LaunchConfiguration('world_file')}.items()),
         Node(package='moveit_ros_move_group', executable='move_group', output='screen',
              parameters=[
                  {'robot_description': ParameterValue(description, value_type=str),
