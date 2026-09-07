@@ -4,9 +4,9 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration
 from launch_ros.actions import Node
 
 
@@ -18,7 +18,7 @@ def generate_launch_description():
     controllers = package_share / "config" / "ur5e_controllers.yaml"
     xacro = ur_share / "urdf" / "ur.urdf.xacro"
     robot_description = Command([
-        FindExecutable(name="xacro"), " ", str(xacro),
+        FindExecutable(name="xacro"), " ", LaunchConfiguration('description_file'),
         " ur_type:=ur5e name:=ur5e_reference sim_ignition:=true",
         " simulation_controllers:=", str(controllers),
     ])
@@ -54,6 +54,7 @@ def generate_launch_description():
              output="screen"),
     ])
     return LaunchDescription([
+        DeclareLaunchArgument('description_file', default_value=str(xacro)),
         gazebo,
         state_publisher,
         TimerAction(period=3.0, actions=[spawn]),

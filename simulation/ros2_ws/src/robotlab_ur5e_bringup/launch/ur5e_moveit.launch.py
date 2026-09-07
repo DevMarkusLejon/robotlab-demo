@@ -4,9 +4,9 @@ import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -15,7 +15,8 @@ def generate_launch_description():
     own = Path(get_package_share_directory('robotlab_ur5e_bringup'))
     ur = Path(get_package_share_directory('ur_description'))
     moveit = Path(get_package_share_directory('ur_moveit_config'))
-    description = Command([FindExecutable(name='xacro'), ' ', str(ur / 'urdf/ur.urdf.xacro'),
+    description_file = LaunchConfiguration('description_file')
+    description = Command([FindExecutable(name='xacro'), ' ', description_file,
         ' ur_type:=ur5e name:=ur sim_ignition:=true simulation_controllers:=',
         str(own / 'config/ur5e_controllers.yaml')])
     semantic = Command([FindExecutable(name='xacro'), ' ', str(moveit / 'srdf/ur.srdf.xacro'),
@@ -25,7 +26,9 @@ def generate_launch_description():
         request_adapters='default_planner_request_adapters/AddTimeOptimalParameterization',
         start_state_max_bounds_error=0.01)
     return LaunchDescription([
-        IncludeLaunchDescription(PythonLaunchDescriptionSource(str(own / 'launch/ur5e_gz_ros2.launch.py'))),
+        DeclareLaunchArgument('description_file', default_value=str(ur / 'urdf/ur.urdf.xacro')),
+        IncludeLaunchDescription(PythonLaunchDescriptionSource(str(own / 'launch/ur5e_gz_ros2.launch.py')),
+                                 launch_arguments={'description_file': description_file}.items()),
         Node(package='moveit_ros_move_group', executable='move_group', output='screen',
              parameters=[
                  {'robot_description': ParameterValue(description, value_type=str),

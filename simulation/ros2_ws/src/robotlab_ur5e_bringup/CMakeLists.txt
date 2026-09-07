@@ -3,7 +3,7 @@ project(robotlab_ur5e_bringup)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY config worlds launch
+install(DIRECTORY config worlds launch urdf
   DESTINATION share/${PROJECT_NAME}
 )
 

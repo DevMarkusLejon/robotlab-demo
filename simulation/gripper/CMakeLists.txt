@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(robotlab_contact_gripper)
+find_package(ignition-gazebo6 REQUIRED)
+find_package(ignition-plugin1 REQUIRED COMPONENTS register)
+add_library(robotlab_contact_gripper SHARED ContactGripper.cc)
+target_compile_features(robotlab_contact_gripper PRIVATE cxx_std_17)
+target_link_libraries(robotlab_contact_gripper PRIVATE ignition-gazebo6::core ignition-plugin1::register)

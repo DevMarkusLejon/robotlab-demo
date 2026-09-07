@@ -220,6 +220,12 @@ is explicitly labeled as an illustrative mockup.
 
 ## Remaining acceptance checks
 
+The optional [suction reference](../gripper/README.md) now has a tested
+contact/carry/release physics fixture and an official UR5e wrapper with the
+cup included in collision geometry. `--gripper-check` verifies the mounted-cup
+hover after the plugin is built. Actual robot-driven token pickup and placement
+are still outstanding.
+
 1. `joint_state_broadcaster` reports all six UR5e joints.
 2. MoveIt plans a collision-free approach, descend, retract trajectory for a
    calibrated board cell.
