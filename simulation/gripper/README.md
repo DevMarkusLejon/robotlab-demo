@@ -78,9 +78,12 @@ On 2026-09-07 the full center-cell sequence passed with carried-payload collisio
 rejection. Gazebo reported the released token at approximately
 `[0.449463, -0.000143, 0.743500]` m versus `[0.450000, 0, 0.743500]` m expected.
 Three successive object-state samples must be within 10 mm and detached before
-placement is recorded. This is simulation ground truth, not camera or physical
-robot evidence. Center-cell execution is verified; other placement cells are
-not yet validated with a carried token.
+placement is recorded. This check is simulation ground truth, not physical
+robot evidence. The sequence now additionally requires three rendered overhead
+camera frames showing the requested cell change after the robot returns home.
+Camera events are labeled `source=gazebo_rendered_camera`; before/after PNGs
+are saved in `artifacts/`. Camera confirmation passed for center cell 4 and
+corner cell 0 on 2026-09-07. Other carried-token placement cells remain unverified.
 
 Logs remain under `artifacts/` (`pick-place.jsonl`, `robotlab-pick.sdf`, and
 `moveit.*.log`). The live webcam bridge still runs hover mode; it is not yet

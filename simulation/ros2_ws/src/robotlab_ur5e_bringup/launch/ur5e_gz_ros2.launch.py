@@ -26,9 +26,9 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(str(gz_share / "launch" / "gz_sim.launch.py")),
         launch_arguments={
-            # Headless keeps this launch usable in CI and WSL sessions without
-            # an Ogre/EGL display. Start `ign gazebo` separately for a GUI.
-            "gz_args": ["-s -r ", LaunchConfiguration('world_file')],
+            # Server only; camera worlds use Ogre via WSLg's display. Ogre2
+            # headless rendering is unreliable on this WSL graphics backend.
+            "gz_args": ["-s -r --render-engine-server ogre ", LaunchConfiguration('world_file')],
             "gz_version": "6",
         }.items(),
     )
@@ -58,6 +58,9 @@ def generate_launch_description():
         DeclareLaunchArgument('description_file', default_value=str(xacro)),
         DeclareLaunchArgument('world_file', default_value=str(world)),
         gazebo,
+        Node(package='ros_gz_bridge', executable='parameter_bridge',
+             arguments=['/robotlab/board_camera/image@sensor_msgs/msg/Image[ignition.msgs.Image'],
+             output='screen'),
         state_publisher,
         TimerAction(period=3.0, actions=[spawn]),
         TimerAction(period=7.0, actions=[controllers_after_spawn]),

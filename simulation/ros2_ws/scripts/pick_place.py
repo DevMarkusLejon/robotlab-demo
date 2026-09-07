@@ -1,4 +1,4 @@
-"""UR5e contact-gated token transfer with Gazebo object-state verification."""
+"""UR5e contact-gated transfer verified by rendered images and object state."""
 import argparse
 import json
 import math
@@ -14,6 +14,9 @@ from robotlab.moveit_planner import MoveItPlanner, world_boxes, cell_tool_target
 from robotlab.gripper_scene import allow_cup_contact, set_token, remove_scene_object
 from robotlab.ros2_executor import ROS2Executor
 from robotlab.telemetry import TelemetryRecorder
+from robotlab.sim_camera import add_camera
+from robotlab.ros2_board_camera import ROSBoardCamera
+from robotlab.board_observer import PlacementVerifier
 
 WORLD = ROOT / 'artifacts/robotlab-pick.sdf'
 SUPPLY = (0.45, -0.36, 0.7435)
@@ -23,6 +26,7 @@ def prepare_world():
     path = ROOT / 'simulation/ros2_ws/src/robotlab_ur5e_bringup/worlds/robotlab_ros2.sdf'
     tree = ET.parse(path)
     world = tree.getroot().find('world')
+    add_camera(world)
     world.append(ET.fromstring('''<model name="supply"><static>true</static><pose>0.45 -0.36 0.70875 0 0 0</pose><link name="supply">
       <collision name="supply"><geometry><box><size>0.12 0.12 0.0575</size></box></geometry></collision>
       <visual name="supply"><geometry><box><size>0.12 0.12 0.0575</size></box></geometry></visual>
@@ -70,6 +74,14 @@ def main():
         if state['attached'] or math.dist(state['token_xyz'], SUPPLY) > 0.02:
             raise RuntimeError('unexpected_initial_token_state')
         set_token(planner, (SUPPLY[0], SUPPLY[1], SUPPLY[2] - 0.75))
+        import cv2
+        camera = ROSBoardCamera(node)
+        baseline, frame = camera.observe(timeout=30)
+        cv2.imwrite(str(ROOT / 'artifacts/pick-camera-before.png'), frame)
+        verifier = PlacementVerifier(baseline, cell=args.cell, symbol='X',
+            commanded_at_ms=time.monotonic_ns() // 1_000_000)
+        recorder.record('camera_baseline', frame_id=baseline.frame_id, cells=baseline.cells,
+                        source='gazebo_rendered_camera')
 
         def move(xyz, stage):
             recorder.record('pick_stage', stage=stage, target_m=xyz)
@@ -143,8 +155,23 @@ def main():
         recorder.record('simulation_placement_observed', cell=args.cell,
                          verification='gazebo_object_pose', expected_xyz=expected, **state)
         executor.execute(planner.plan_joints(executor.current_positions(), home))
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            observation, frame = camera.observe()
+            result = verifier.update(observation, now_ms=time.monotonic_ns() // 1_000_000)
+            cv2.imwrite(str(ROOT / 'artifacts/pick-camera-after.png'), frame)
+            recorder.record('camera_placement_check', result=result, cells=observation.cells,
+                            valid=observation.valid, reason=observation.reason,
+                            frame_id=observation.frame_id, source='gazebo_rendered_camera')
+            if result == 'verified':
+                recorder.record('placement_observed', cell=args.cell, symbol='X', accepted=True,
+                    verification='camera', source='gazebo_rendered_camera',
+                    frame_id=observation.frame_id, cells=observation.cells, confirming_frames=verifier.stable)
+                break
+        else:
+            raise RuntimeError('camera_placement_not_confirmed')
         recorder.record('pick_place_completed', cell=args.cell)
-        print('UR5e token transfer verified from Gazebo object state', flush=True)
+        print('UR5e token transfer verified by rendered camera and Gazebo object state', flush=True)
         return 0
     except Exception as error:
         recorder.record('pick_place_failed', cell=args.cell, reason=str(error))

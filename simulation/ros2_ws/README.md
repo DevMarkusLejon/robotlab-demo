@@ -224,9 +224,9 @@ The optional [suction reference](../gripper/README.md) now has a tested
 contact/carry/release physics fixture and an official UR5e wrapper with the
 cup included in collision geometry. `--gripper-check` verifies the mounted-cup
 hover after the plugin is built. `--pick-place 4` additionally runs robot-driven
-pickup, carried-payload collision rejection, and center-cell placement verified
-from Gazebo token position. Camera confirmation and live-webcam selection of
-pick/place remain to be connected.
+pickup, carried-payload collision rejection, and placement verified from both
+Gazebo token position and rendered overhead camera images. Live-webcam selection
+of pick/place remains to be connected.
 
 1. `joint_state_broadcaster` reports all six UR5e joints.
 2. MoveIt plans a collision-free approach, descend, retract trajectory for a
@@ -235,3 +235,29 @@ pick/place remain to be connected.
    violations before the controller action is sent.
 4. A scene observer verifies the placed token and records the result in the
    same JSONL telemetry schema used by the reference demo.
+
+## Rendered camera confirmation
+
+Install `ros-humble-ros-gz-bridge`, `python3-opencv`, and `python3-numpy` in the
+ROS environment, then rebuild the workspace with `colcon build --symlink-install`.
+The existing `--pick-place 4` command now requires an empty-target camera baseline
+before moving and three new camera frames showing exactly the requested board
+change after returning home. Missing images, an incorrect cell, or ambiguous
+colored shapes cannot produce a successful camera verification.
+
+The generated pick world contains a 640×640, 10 Hz overhead camera. Gazebo
+renders RGB images and `ros_gz_bridge` publishes them on
+`/robotlab/board_camera/image`. The observer uses the known simulated camera
+geometry for calibration and mirrors optical vertical coordinates to match
+the robot's increasing world-y row numbering. A physical camera still requires
+measured calibration. Object poses are not used to fabricate these images.
+
+This WSL setup uses Ogre through WSLg (`DISPLAY=:0`). Ogre2 with headless EGL
+crashed in this environment. A Linux host without a display needs a working
+rendering/display configuration before the camera test can pass.
+
+Inspect `artifacts/pick-camera-before.png`, `pick-camera-after.png`, and
+`pick-place.jsonl`. Camera events explicitly identify
+`source=gazebo_rendered_camera`; they are simulation evidence, not physical
+camera or hardware validation. While a camera world and bridge are running,
+`python3 simulation/ros2_ws/scripts/camera_check.py` saves a standalone frame.
