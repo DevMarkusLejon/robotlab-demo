@@ -1,6 +1,7 @@
 import time
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from robotlab.ros2_board_camera import ROSBoardCamera
 
@@ -31,3 +32,13 @@ class CameraMessageTests(unittest.TestCase):
         self.assertTrue(camera.preview_jpeg().startswith(b'\xff\xd8'))
         camera.received_at = time.monotonic() - 2
         self.assertIsNone(camera.preview_jpeg())
+
+    def test_missing_and_repeated_sensor_frames_time_out_without_observation(self):
+        camera = object.__new__(ROSBoardCamera)
+        camera.node = object()
+        repeated = SimpleNamespace(header=SimpleNamespace(stamp=SimpleNamespace(sec=1, nanosec=0)))
+        for latest in (None, repeated):
+            camera.latest = latest
+            with patch.dict('sys.modules', {'rclpy': SimpleNamespace(spin_once=lambda *a, **k: None)}):
+                with self.assertRaisesRegex(TimeoutError, 'no_fresh_board_camera_image'):
+                    camera.observe(timeout=.01)

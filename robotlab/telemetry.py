@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any
+import threading
 
 from .metrics import summarize_events
 
@@ -15,13 +16,24 @@ class TelemetryRecorder:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.events: list[dict[str, Any]] = []
+        self.lock = threading.Lock()
+
+    def scoped(self, **context):
+        parent = self
+
+        class ScopedRecorder:
+            def record(self, event, **fields):
+                return parent.record(event, **dict(context, **fields))
+
+        return ScopedRecorder()
 
     def record(self, event: str, **fields: Any) -> dict[str, Any]:
         payload = {"timestamp": datetime.now(timezone.utc).isoformat(), "event": event, **fields}
         json.dumps(payload, allow_nan=False)
-        self.events.append(payload)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, allow_nan=False, sort_keys=True) + "\n")
+        with self.lock:
+            self.events.append(payload)
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload, allow_nan=False, sort_keys=True) + "\n")
         return payload
 
     def summary(self) -> dict[str, Any]:

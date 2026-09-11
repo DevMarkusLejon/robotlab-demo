@@ -8,6 +8,10 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from robotlab.gripper_transport import decode_gripper_output
 
 ROOT = Path(__file__).resolve().parent
 
@@ -18,7 +22,7 @@ def command(*args):
 
 def state():
     output = command('ign', 'topic', '-t', '/robotlab/gripper/state', '-e', '-n', '1', '--json-output')
-    return json.loads(json.loads(output)['data'])
+    return decode_gripper_output(output)
 
 
 def enable(value):
@@ -69,13 +73,19 @@ def main():
             attached = wait_for(lambda s: s['attached'])
             assert attached['contact_steps_at_attach'] >= 3, attached
             print('Contact detected: token attached', flush=True)
+            command('ign', 'topic', '-t', '/robotlab/gripper/select',
+                    '-m', 'ignition.msgs.StringMsg', '-p', 'data: "token_1"')
+            time.sleep(0.2)
+            protected = state()
+            assert protected['attached'] and protected['token_name'] == 'token', protected
+            print('Changing the selected token while attached was rejected', flush=True)
             pose('fixture', 0.2, 0.6, inverted=True)
             carried = wait_for(lambda s: s['attached'] and s['token_xyz'][2] > 0.5
                                and abs(s['token_xyz'][0] - 0.2) < 0.02)
             print('Token moved with inverted fixture', flush=True)
             enable(False)
             released = wait_for(lambda s: not s['attached'] and s['token_xyz'][2] < 0.03)
-            evidence = dict(initial=initial, no_contact=far, attached=attached,
+            evidence = dict(initial=initial, no_contact=far, attached=attached, selection_rejected=protected,
                             carried=carried, released=released)
             (ROOT / 'build/evidence.json').write_text(json.dumps(evidence, indent=2))
             print('Release verified: token fell to ground', flush=True)

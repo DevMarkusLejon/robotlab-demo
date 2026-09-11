@@ -1,5 +1,24 @@
 # Contact-gated suction reference
 
+## Multi-token game (September 2026)
+
+The desktop launcher now runs `--game`, with five red and four blue tokens.
+`robotlab.token_supply.SimulatedDispenser` creates each additional token once
+at the supply pedestal. It does not relocate existing objects. This models a
+dispenser, not a physical nine-position rack; real feed hardware is undecided.
+
+The `/robotlab/gripper/select` StringMsg topic selects `token` or `token_1` through
+`token_8`. Selection is applied only when suction is disabled and no joint is
+attached, and is acknowledged as `token_name` in the state message. Each placed
+token remains in the physics world and MoveIt scene. Cup contact permissions
+are removed after retracting from each placed token. All new moves require a
+camera baseline matching the entire previously confirmed board.
+
+Build the updated plugin with `cmake --build simulation/gripper/build -j2`
+before using the new launcher. The single-token commands below remain available
+for isolated placement tests. Historical validation dates below describe those
+earlier tests; see `docs/implementation-status.md` for current results.
+
 This Gazebo Fortress system implements an **idealized suction attachment**.
 It requires the cup collision to contact the configured token link for three
 simulation updates before creating a detachable fixed joint. Disabling suction

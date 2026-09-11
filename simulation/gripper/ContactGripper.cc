@@ -1,6 +1,8 @@
 // Contact-gated idealized suction. No force/slip/seal model is implied.
 #include <atomic>
 #include <sstream>
+#include <mutex>
+#include <regex>
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
@@ -27,11 +29,29 @@ class ContactGripper : public sim::System, public sim::ISystemConfigure,
     childName = sdf->Get<std::string>("child_model");
     childLinkName = sdf->Get<std::string>("child_link");
     node.Subscribe("/robotlab/gripper/enable", &ContactGripper::Enable, this);
+    node.Subscribe("/robotlab/gripper/select", &ContactGripper::Select, this);
     publisher = node.Advertise<ignition::msgs::StringMsg>("/robotlab/gripper/state");
   }
   void Enable(const ignition::msgs::Boolean &msg) { enabled.store(msg.data()); }
+  void Select(const ignition::msgs::StringMsg &msg) {
+    if (!std::regex_match(msg.data(), std::regex("token(_[0-8])?"))) return;
+    std::lock_guard<std::mutex> guard(selectionMutex);
+    requestedChild = msg.data();
+  }
   void PreUpdate(const sim::UpdateInfo &info, sim::EntityComponentManager &ecm) override {
     if (info.paused || parent == sim::kNullEntity) return;
+    {
+      std::lock_guard<std::mutex> guard(selectionMutex);
+      if (!requestedChild.empty()) {
+        // Selection never redirects an attached payload or an enabled cup.
+        if (!enabled.load() && joint == sim::kNullEntity) {
+          childName = requestedChild;
+          child = sim::kNullEntity;
+          contactSteps = contactsAtAttach = 0;
+        }
+        requestedChild.clear();
+      }
+    }
     // Enable physics contact reporting on the actual cup collisions. URDF
     // conversion may rename them when fixed links are lumped.
     ecm.Each<comp::Collision, comp::ParentEntity>(
@@ -77,6 +97,7 @@ class ContactGripper : public sim::System, public sim::ISystemConfigure,
       lastReport = info.simTime;
       std::ostringstream text;
       text << "{\"attached\":" << (joint != sim::kNullEntity ? "true" : "false")
+           << ",\"token_name\":\"" << childName << "\""
            << ",\"contact\":" << (contact ? "true" : "false")
            << ",\"contact_pairs\":" << pairs
            << ",\"contact_steps_at_attach\":" << contactsAtAttach;
@@ -94,6 +115,8 @@ class ContactGripper : public sim::System, public sim::ISystemConfigure,
  private:
   sim::Entity parent{sim::kNullEntity}, child{sim::kNullEntity}, joint{sim::kNullEntity};
   std::string childName, childLinkName;
+  std::string requestedChild;
+  std::mutex selectionMutex;
   std::atomic<bool> enabled{false};
   int contactSteps{0}, contactsAtAttach{0};
   std::chrono::steady_clock::duration lastReport{0};

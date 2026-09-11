@@ -20,6 +20,10 @@ Robotmodell, gripdon, pjästyp, spelvariant, kameror, positions-/kalibreringsdat
 
 ## Beslut i detta repo
 
+Följande lista beskriver den ursprungliga hårdvaruoberoende kärnan. Den har sedan
+kompletterats med UR5e/MoveIt/Gazebo-speldemon; se aktuell README och
+`implementation-status.md`. Fysisk robot och 5G är fortsatt öppna beslut.
+
 Repo:t implementerar bara sådant som kan testas utan dessa saknade fakta:
 
 1. En ren tre-i-rad-modell med deterministisk optimal motspelare.

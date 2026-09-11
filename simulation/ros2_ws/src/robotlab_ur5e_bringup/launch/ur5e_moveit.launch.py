@@ -35,6 +35,7 @@ def generate_launch_description():
         Node(package='moveit_ros_move_group', executable='move_group', output='screen',
              parameters=[
                  {'robot_description': ParameterValue(description, value_type=str),
+                  'use_sim_time': True,
                   'robot_description_semantic': ParameterValue(semantic, value_type=str),
                   'robot_description_planning': yaml.safe_load((moveit / 'config/joint_limits.yaml').read_text()),
                   'move_group': ompl,

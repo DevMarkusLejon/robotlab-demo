@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+import uuid
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -17,6 +18,8 @@ from robotlab.telemetry import TelemetryRecorder
 from robotlab.sim_camera import add_camera
 from robotlab.ros2_board_camera import ROSBoardCamera
 from robotlab.board_observer import PlacementVerifier
+from robotlab.match import VerifiedPlacement
+from robotlab.gripper_transport import decode_gripper_output
 
 WORLD = ROOT / 'artifacts/robotlab-pick.sdf'
 SUPPLY = (0.45, -0.36, 0.7435)
@@ -43,7 +46,7 @@ def prepare_world():
 def gripper_state():
     result = subprocess.run(['ign', 'topic', '-t', '/robotlab/gripper/state', '-e', '-n', '1',
                              '--json-output'], check=True, capture_output=True, text=True, timeout=5)
-    return json.loads(json.loads(result.stdout)['data'])
+    return decode_gripper_output(result.stdout)
 
 
 def suction(enabled):
@@ -51,25 +54,53 @@ def suction(enabled):
                     '-p', f'data: {str(enabled).lower()}'], check=True, timeout=5)
 
 
-def execute_pick(cell, node, recorder, on_stage=None, camera=None):
+def select_token(name):
+    suction(False)
+    # Selection is acknowledged in physics state before any movement.
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        subprocess.run(['ign', 'topic', '-t', '/robotlab/gripper/select',
+            '-m', 'ignition.msgs.StringMsg', '-p', 'data: ' + json.dumps(name)],
+            check=True, timeout=5)
+        state = gripper_state()
+        if state.get('token_name') == name and not state['attached'] and 'token_xyz' in state:
+            return
+    raise RuntimeError('token_selection_not_confirmed')
+
+
+def execute_pick(cell, node, recorder, on_stage=None, camera=None, *, symbol='X',
+                 token_name='token', expected_board=None, test_fault=None):
     if type(cell) is not int or not 0 <= cell < 9:
         raise ValueError("invalid_cell")
-    recorder.record('pick_place_started', cell=cell, verification='simulation_only')
+    if test_fault not in (None, 'camera_unavailable', 'grasp_missing'):
+        raise ValueError('invalid_test_fault')
+    started = time.monotonic()
+    recorder = recorder.scoped(attempt_id=uuid.uuid4().hex, token_name=token_name,
+                               cell=cell, symbol=symbol)
+    recorder.record('pick_place_started', cell=cell, symbol=symbol, token_name=token_name,
+                    verification='simulation_only')
+    executor = None
     try:
-        executor = ROS2Executor(node, recorder)
+        select_token(token_name)
+        executor = ROS2Executor(node, recorder, simulation=True)
         home = executor.current_positions(timeout=30)
         planner = MoveItPlanner(node)
         planner.apply_boxes(world_boxes(WORLD))
-        allow_cup_contact(planner)
+        allow_cup_contact(planner, first=token_name)
         state = gripper_state()
         if state['attached'] or math.dist(state['token_xyz'], SUPPLY) > 0.02:
             raise RuntimeError('unexpected_initial_token_state')
-        set_token(planner, (SUPPLY[0], SUPPLY[1], SUPPLY[2] - 0.75))
+        set_token(planner, (SUPPLY[0], SUPPLY[1], SUPPLY[2] - 0.75), name=token_name)
         import cv2
         camera = camera or ROSBoardCamera(node)
+        if test_fault == 'camera_unavailable':
+            recorder.record('test_fault_injected', fault=test_fault, simulation_only=True)
+            raise TimeoutError('no_fresh_board_camera_image')
         baseline, frame = camera.observe(timeout=30)
+        if expected_board is not None and tuple(v or '' for v in baseline.cells) != tuple(expected_board):
+            raise RuntimeError('baseline_board_mismatch')
         cv2.imwrite(str(ROOT / 'artifacts/pick-camera-before.png'), frame)
-        verifier = PlacementVerifier(baseline, cell=cell, symbol='X',
+        verifier = PlacementVerifier(baseline, cell=cell, symbol=symbol,
             commanded_at_ms=time.monotonic_ns() // 1_000_000)
         recorder.record('camera_baseline', frame_id=baseline.frame_id, cells=baseline.cells,
                         source='gazebo_rendered_camera')
@@ -88,7 +119,10 @@ def execute_pick(cell, node, recorder, on_stage=None, camera=None):
             print(stage, flush=True)
 
         move((SUPPLY[0], SUPPLY[1], 0.22), 'approach_supply')
-        suction(True)
+        if test_fault == 'grasp_missing':
+            recorder.record('test_fault_injected', fault=test_fault, simulation_only=True)
+        else:
+            suction(True)
         move((SUPPLY[0], SUPPLY[1], 0.067), 'contact_supply')
         deadline = time.monotonic() + 3.0
         while True:
@@ -100,12 +134,12 @@ def execute_pick(cell, node, recorder, on_stage=None, camera=None):
             pose = planner.tool_pose(executor.current_positions())
             raise RuntimeError(f'grasp_contact_not_confirmed:{state}, tool={pose}')
         recorder.record('grasp_observed', **state)
-        set_token(planner, (0.0, 0.0, 0.076), attached=True)
+        set_token(planner, (0.0, 0.0, 0.076), attached=True, name=token_name)
         # The token starts resting on its support; permit that pair only until
         # lift-off. All robot and other scene collisions remain checked.
-        allow_cup_contact(planner, second='supply', enabled=True)
+        allow_cup_contact(planner, first=token_name, second='supply', enabled=True)
         move((SUPPLY[0], SUPPLY[1], 0.22), 'lift')
-        allow_cup_contact(planner, second='supply', enabled=False)
+        allow_cup_contact(planner, first=token_name, second='supply', enabled=False)
         state = gripper_state()
         if not state['attached'] or state['token_xyz'][2] < 0.86:
             raise RuntimeError('token_not_lifted')
@@ -117,7 +151,7 @@ def execute_pick(cell, node, recorder, on_stage=None, camera=None):
         current = executor.current_positions()
         validity = planner.state_validity(current)
         pairs = [(c.contact_body_1, c.contact_body_2) for c in validity.contacts]
-        if validity.valid or not any('token' in pair and 'payload_probe' in pair for pair in pairs):
+        if validity.valid or not any(token_name in pair and 'payload_probe' in pair for pair in pairs):
             raise RuntimeError(f'carried_payload_not_in_collision_scene:{pairs}')
         try:
             planner.plan_joints(current, current)
@@ -138,8 +172,9 @@ def execute_pick(cell, node, recorder, on_stage=None, camera=None):
         if state['attached']:
             raise RuntimeError('release_not_confirmed')
         observed = state['token_xyz']
-        set_token(planner, (observed[0], observed[1], observed[2] - 0.75))
+        set_token(planner, (observed[0], observed[1], observed[2] - 0.75), name=token_name)
         move(target, 'retract')
+        allow_cup_contact(planner, first=token_name, enabled=False)
         expected = (target[0], target[1], 0.7435)
         for _ in range(3):
             state = gripper_state()
@@ -161,18 +196,24 @@ def execute_pick(cell, node, recorder, on_stage=None, camera=None):
                             valid=observation.valid, reason=observation.reason,
                             frame_id=observation.frame_id, source='gazebo_rendered_camera')
             if result == 'verified':
-                recorder.record('placement_observed', cell=cell, symbol='X', accepted=True,
+                recorder.record('placement_observed', cell=cell, symbol=symbol, accepted=True,
                     verification='camera', source='gazebo_rendered_camera',
                     frame_id=observation.frame_id, cells=observation.cells, confirming_frames=verifier.stable)
                 break
         else:
             raise RuntimeError('camera_placement_not_confirmed')
-        recorder.record('pick_place_completed', cell=cell)
+        recorder.record('pick_place_completed', cell=cell, symbol=symbol, token_name=token_name,
+                        duration_s=time.monotonic() - started)
         print('UR5e token transfer verified by rendered camera and Gazebo object state', flush=True)
-        return 0
+        return VerifiedPlacement(cell, symbol, observation.cells, observation.frame_id,
+                                 'gazebo_rendered_camera', verifier.stable)
     except Exception as error:
-        recorder.record('pick_place_failed', cell=cell, reason=str(error))
+        recorder.record('pick_place_failed', cell=cell, symbol=symbol, reason=str(error),
+                        duration_s=time.monotonic() - started)
         raise
+    finally:
+        if executor is not None:
+            executor.close()
 
 
 def main():
@@ -188,7 +229,8 @@ def main():
     node = rclpy.create_node('robotlab_pick_place')
     recorder = TelemetryRecorder(ROOT / 'artifacts/pick-place.jsonl')
     try:
-        return execute_pick(args.cell, node, recorder)
+        execute_pick(args.cell, node, recorder)
+        return 0
     finally:
         node.destroy_node()
         rclpy.shutdown()

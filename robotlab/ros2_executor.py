@@ -19,18 +19,30 @@ def validate_from_state(points, positions):
     return validate_trajectory((JointPoint(0.0, tuple(positions)), *points))
 
 
+def result_timeout(duration_s, simulation=False):
+    if not math.isfinite(duration_s) or duration_s <= 0:
+        raise ValueError('invalid_trajectory_duration')
+    # Rendering can slow Gazebo's clock. Keep a bounded simulation-only allowance.
+    return min(180.0, max(30.0, 3 * duration_s + 10.0)) if simulation else duration_s + 10.0
+
+
 class ROS2Executor:
-    def __init__(self, node, recorder):
+    def __init__(self, node, recorder, *, simulation=False):
         from rclpy.action import ActionClient
         from control_msgs.action import FollowJointTrajectory
         from sensor_msgs.msg import JointState
         self.node = node
         self.recorder = recorder
+        self.simulation = simulation
         self.state = None
         self.received_at = 0.0
         self.subscription = node.create_subscription(JointState, '/joint_states', self._state, 10)
         self.client = ActionClient(node, FollowJointTrajectory,
                                    '/ur5e_arm_controller/follow_joint_trajectory')
+
+    def close(self):
+        self.client.destroy()
+        self.node.destroy_subscription(self.subscription)
 
     def _state(self, message):
         values = dict(zip(message.name, message.position))
@@ -95,7 +107,7 @@ class ROS2Executor:
         try:
             self.recorder.record('execution_started', executor='ros2',
                                  goal_id=[int(value) for value in handle.goal_id.uuid])
-            result = self._wait(handle.get_result_async(), points[-1].time_s + 10.0)
+            result = self._wait(handle.get_result_async(), result_timeout(points[-1].time_s, self.simulation))
         except BaseException:
             cancellation = self._wait(handle.cancel_goal_async(), 3.0)
             self.recorder.record('execution_cancel_requested', return_code=cancellation.return_code)

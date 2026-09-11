@@ -19,14 +19,21 @@ from robotlab.telemetry import TelemetryRecorder
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pick-place', action='store_true')
+    parser.add_argument('--game', action='store_true')
+    parser.add_argument('--test-fault', choices=('camera_unavailable', 'grasp_missing'))
     args = parser.parse_args()
     import rclpy
+    from rclpy.executors import ExternalShutdownException
     rclpy.init()
     node = rclpy.create_node('robotlab_live_intent')
-    mailbox = IntentMailbox(mode='pick_place' if args.pick_place else 'hover')
-    recorder = TelemetryRecorder(ROOT / 'artifacts/live-robot.jsonl')
+    mailbox = IntentMailbox(mode='game' if args.game else 'pick_place' if args.pick_place else 'hover')
+    recorder = TelemetryRecorder(ROOT / f'artifacts/live-{mailbox.run_id}.jsonl')
+    recorder.record('session_started', run_id=mailbox.run_id, mode=mailbox.mode,
+                    simulation_only=True)
+    from robotlab.token_supply import SimulatedDispenser
+    dispenser = SimulatedDispenser()
     from robotlab.ros2_board_camera import ROSBoardCamera
-    camera = ROSBoardCamera(node) if args.pick_place else None
+    camera = ROSBoardCamera(node) if args.pick_place or args.game else None
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -68,6 +75,10 @@ def main():
                 if not isinstance(payload, dict):
                     raise ValueError('expected_object')
                 result = mailbox.submit(payload, int(time.time() * 1000))
+                if result.get('stage') == 'accepted':
+                    recorder.record('intent_accepted', cell=result['cell'],
+                        input_source=payload.get('input_source', 'unspecified'),
+                        input_source_is_client_reported=True)
                 self.reply(200, result)
             except (ValueError, TypeError) as error:
                 self.reply(400, {'error': str(error)})
@@ -84,15 +95,32 @@ def main():
         threading.Thread(target=server.serve_forever, daemon=True).start()
         print('UR5e webcam receiver ready at http://127.0.0.1:8766', flush=True)
         while rclpy.ok():
-            cell = mailbox.take()
+            cell = mailbox.take(now_ms=int(time.time() * 1000))
             if cell is None:
                 rclpy.spin_once(node, timeout_sec=0.05)
                 continue
             try:
                 recorder.record('live_intent_accepted', cell=cell)
-                if args.pick_place:
+                if args.game:
                     from pick_place import execute_pick
-                    execute_pick(cell, node, recorder, on_stage=mailbox.report_stage, camera=camera)
+                    while cell is not None:
+                        symbol = mailbox.match.board.next_player
+                        token_name = mailbox.match.token_id
+                        dispenser.dispense(token_name, symbol)
+                        receipt = execute_pick(cell, node, recorder,
+                            on_stage=mailbox.report_stage, camera=camera, symbol=symbol,
+                            token_name=token_name, expected_board=mailbox.match.board.cells,
+                            test_fault=args.test_fault)
+                        mailbox.commit_placement(receipt, cell)
+                        recorder.record('game_move_committed', cell=cell, symbol=symbol,
+                            board=mailbox.board, frame_id=receipt.frame_id)
+                        cell = mailbox.next_robot_move()
+                    recorder.record('game_turn_completed', board=mailbox.board,
+                        winner=mailbox.match.board.winner, draw=mailbox.match.board.is_draw)
+                elif args.pick_place:
+                    from pick_place import execute_pick
+                    execute_pick(cell, node, recorder, on_stage=mailbox.report_stage, camera=camera,
+                                 test_fault=args.test_fault)
                     recorder.record('live_pick_place_completed', cell=cell)
                 else:
                     error = hover_cell(executor, planner, world, cell, recorder)
@@ -101,7 +129,7 @@ def main():
             except Exception as error:
                 recorder.record('live_execution_failed', cell=cell, reason=str(error))
                 mailbox.finish(error=error)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         if server:

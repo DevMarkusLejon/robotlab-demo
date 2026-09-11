@@ -1,5 +1,33 @@
 # ROS 2 / MoveIt 2 UR5e simulation
 
+## Current desktop game
+
+The Windows desktop launcher uses `moveit_smoke_test.sh --game`. This adds a
+complete camera-verified game on top of the single-token experiments described
+below: finite simulated dispenser, red X / blue O, automatic opponent, win/draw,
+and a scene restart through the **Nytt spel** button. **Testa pekning utan
+robotrörelse** checks the real webcam locally without sending robot commands.
+
+Every placement verifies the baseline against the committed board and then
+requires three rendered camera frames with exactly the expected change. Existing
+tokens remain collision objects. A failed or uncertain placement latches the
+game; it is never blindly retried. Telemetry is now stored per session in
+`artifacts/live-<run-id>.jsonl`; the old `live-robot.jsonl` is historical evidence.
+
+The launch now bridges `/clock` and sets MoveIt and robot-state-publisher to
+simulation time. Service/observation freshness uses wall-clock bounds. Gazebo
+trajectory-result waits have a bounded simulation-only allowance for rendering
+slowdown. Per-placement action clients and joint subscriptions are released.
+
+Run the Windows acceptance tools documented in the root README for complete
+games, per-cell repetitions and injected camera/gripper failures. Their input
+is synthetic. A manual hand trial, physical calibration/robot and actual 5G
+remain separate acceptance work. See `docs/manual-acceptance.md`,
+`docs/integration-open.md` and `docs/implementation-status.md`.
+
+The sections below retain the setup instructions and historical single-token
+validation. Their one-token limitations apply to `--live-pick-place`, not `--game`.
+
 This directory is the handoff point from the working Gazebo transport demo to a
 production-shaped ROS 2 stack. It deliberately does not vendor Universal
 Robots meshes. On the current machine, ROS 2 Humble plus the UR description,
@@ -112,8 +140,8 @@ evidence is written to `artifacts/moveit-motion.jsonl`.
 This checks static-scene joint-space planning. The cell-hover test below adds
 Cartesian tool goals. Neither test verifies gripper contact, a moving obstacle,
 or webcam integration.
-Planning uses an explicitly measured start state and wall-clock service
-timeouts; a shared simulation clock and a live scene sensor remain integration
+Planning uses an explicitly measured start state, wall-clock service timeouts
+and a shared simulation clock. A physical scene sensor remains integration
 work. The installed Humble MoveIt process has also shown a shutdown crash;
 the test terminates its process group but does not claim clean MoveIt shutdown.
 

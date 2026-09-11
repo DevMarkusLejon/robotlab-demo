@@ -37,7 +37,7 @@ def generate_launch_description():
         executable="robot_state_publisher",
         name="robot_state_publisher",
         output="screen",
-        parameters=[{"robot_description": robot_description}],
+        parameters=[{"robot_description": robot_description, 'use_sim_time': True}],
     )
     spawn = Node(
         package="ros_gz_sim",
@@ -59,7 +59,8 @@ def generate_launch_description():
         DeclareLaunchArgument('world_file', default_value=str(world)),
         gazebo,
         Node(package='ros_gz_bridge', executable='parameter_bridge',
-             arguments=['/robotlab/board_camera/image@sensor_msgs/msg/Image[ignition.msgs.Image'],
+             arguments=['/robotlab/board_camera/image@sensor_msgs/msg/Image[ignition.msgs.Image',
+                        '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock'],
              output='screen'),
         state_publisher,
         TimerAction(period=3.0, actions=[spawn]),

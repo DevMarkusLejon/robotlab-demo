@@ -1,10 +1,17 @@
 import unittest
 
-from robotlab.ros2_executor import validate_from_state
+from robotlab.ros2_executor import validate_from_state, result_timeout
 from robotlab.safety import JointPoint
 
 
 class MeasuredStartTests(unittest.TestCase):
+    def test_simulator_timeout_is_bounded_without_changing_hardware_policy(self):
+        self.assertEqual(result_timeout(8), 18)
+        self.assertEqual(result_timeout(8, simulation=True), 34)
+        self.assertEqual(result_timeout(100, simulation=True), 180)
+        with self.assertRaises(ValueError):
+            result_timeout(float('nan'), simulation=True)
+
     def test_first_segment_speed_is_checked(self):
         start = (0, -1, 0, -1, 0, 0)
         target = (1, -1, 0, -1, 0, 0)

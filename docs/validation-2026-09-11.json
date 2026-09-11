@@ -1,0 +1,712 @@
+{
+  "recorded_at": "2026-09-11T07:20:05.682962+00:00",
+  "environment": "Windows Python 3.12 -> WSL Ubuntu-22.04 / ROS 2 Humble / Gazebo Fortress / UR5e simulation",
+  "python_tests": {
+    "passed": 96,
+    "failed": 0,
+    "skipped": 0,
+    "command": "python -m unittest discover -s tests"
+  },
+  "normal_game_metrics": {
+    "placement_attempts": 18,
+    "camera_verified_completions": 18,
+    "placement_attempt_success_rate": 1.0,
+    "placement_duration_p50_s": 36.06662279,
+    "placement_duration_p95_s": 48.03191083500019,
+    "per_cell": {
+      "0": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "1": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "2": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "3": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "4": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "5": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "6": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "7": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      },
+      "8": {
+        "attempts": 2,
+        "verified": 2,
+        "success_rate": 1.0
+      }
+    },
+    "event_count": 878,
+    "trajectory_checks": 126,
+    "trajectory_acceptance_rate": 1.0,
+    "placement_observations": 18,
+    "placement_verification_rate": 1.0,
+    "transport_latency_p50_ms": null,
+    "transport_latency_p95_ms": null
+  },
+  "games": [
+    {
+      "run_id": "bd7b1112-a260-4039-88e5-ea4b6258c86f",
+      "source_log": "live-bd7b1112-a260-4039-88e5-ea4b6258c86f.jsonl",
+      "input_source": "synthetic_acceptance",
+      "success": true,
+      "is_draw": true,
+      "duration_s": 364.672,
+      "protocol_checks": [
+        "old_session",
+        "duplicate_frame",
+        "stale_frame",
+        "packet_gap",
+        "changed_target",
+        "hand_removed"
+      ],
+      "camera_verified_placements": [
+        {
+          "accepted": true,
+          "attempt_id": "e7636e95eff0411db8197c5fc50e2163",
+          "cell": 0,
+          "cells": [
+            "X",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:46900000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:05:24.679637+00:00",
+          "token_name": "token",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "a290e9a063ac4a2fa58ef72a0834247e",
+          "cell": 4,
+          "cells": [
+            "X",
+            null,
+            null,
+            null,
+            "O",
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:81200000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:05:57.671875+00:00",
+          "token_name": "token_1",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "fe5dbdcd6efa4171aad50db8ba98b2c0",
+          "cell": 1,
+          "cells": [
+            "X",
+            "X",
+            null,
+            null,
+            "O",
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:119200000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:06:33.096396+00:00",
+          "token_name": "token_2",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "e96bbf47bcc545388e1907ec2c0c147d",
+          "cell": 2,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            null,
+            "O",
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:151300000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:07:04.122287+00:00",
+          "token_name": "token_3",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "9a41755aec7f43ffbb7ef50644e419a1",
+          "cell": 6,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            null,
+            "O",
+            null,
+            "X",
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:208400000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:08:00.072003+00:00",
+          "token_name": "token_4",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "b669a1b3e7e74940ac600a08285a79c7",
+          "cell": 3,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            null,
+            "X",
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:246100000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:08:35.186138+00:00",
+          "token_name": "token_5",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "f53697bd8d0e4dce870e5a1a2353e0d0",
+          "cell": 5,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            "X",
+            "X",
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:285400000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:09:13.218078+00:00",
+          "token_name": "token_6",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "d9e3cc322d6c4108a2b34703998d4531",
+          "cell": 7,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            "X",
+            "X",
+            "O",
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:320000000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:09:46.625114+00:00",
+          "token_name": "token_7",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "1f92338f6abf428ebab8b9791e6d0498",
+          "cell": 8,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            "X",
+            "X",
+            "O",
+            "X"
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:360700000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:10:27.005367+00:00",
+          "token_name": "token_8",
+          "verification": "camera"
+        }
+      ]
+    },
+    {
+      "run_id": "1fef2f94-3132-4db8-9d1f-4845d6f968fe",
+      "source_log": "live-1fef2f94-3132-4db8-9d1f-4845d6f968fe.jsonl",
+      "input_source": "synthetic_acceptance",
+      "success": true,
+      "is_draw": true,
+      "duration_s": 356.437,
+      "protocol_checks": [
+        "old_session",
+        "duplicate_frame",
+        "stale_frame",
+        "packet_gap",
+        "changed_target",
+        "hand_removed"
+      ],
+      "camera_verified_placements": [
+        {
+          "accepted": true,
+          "attempt_id": "f28dee0530394d859c9d88db4d6d56a9",
+          "cell": 0,
+          "cells": [
+            "X",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:50300000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:11:27.728209+00:00",
+          "token_name": "token",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "eec55080c51f4fdc8caec8469f617aaa",
+          "cell": 4,
+          "cells": [
+            "X",
+            null,
+            null,
+            null,
+            "O",
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:84400000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:12:00.564070+00:00",
+          "token_name": "token_1",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "802d168c9a204053a31fa338d6031648",
+          "cell": 1,
+          "cells": [
+            "X",
+            "X",
+            null,
+            null,
+            "O",
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:118400000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:12:33.277207+00:00",
+          "token_name": "token_2",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "477fc6e9addd4ee28a31dc563f5c6eb2",
+          "cell": 2,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            null,
+            "O",
+            null,
+            null,
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:150300000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:13:03.897688+00:00",
+          "token_name": "token_3",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "4ccd7641976e4bc18d2976e67ade8a74",
+          "cell": 6,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            null,
+            "O",
+            null,
+            "X",
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:200200000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:13:51.459456+00:00",
+          "token_name": "token_4",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "3cebf0e8e1c34ee2bd8d37fb7be22fe9",
+          "cell": 3,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            null,
+            "X",
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:242400000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:14:32.460073+00:00",
+          "token_name": "token_5",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "5aa35e56976d420a9a07724dd4264774",
+          "cell": 5,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            "X",
+            "X",
+            null,
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:281800000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:15:10.602958+00:00",
+          "token_name": "token_6",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "04647ae4fc664a8285f8c577babbc952",
+          "cell": 7,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            "X",
+            "X",
+            "O",
+            null
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:322600000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "O",
+          "timestamp": "2026-09-11T07:15:49.508436+00:00",
+          "token_name": "token_7",
+          "verification": "camera"
+        },
+        {
+          "accepted": true,
+          "attempt_id": "150e23b30717406ab8313feffbfeb290",
+          "cell": 8,
+          "cells": [
+            "X",
+            "X",
+            "O",
+            "O",
+            "O",
+            "X",
+            "X",
+            "O",
+            "X"
+          ],
+          "confirming_frames": 3,
+          "event": "placement_observed",
+          "frame_id": "gazebo:356600000000",
+          "source": "gazebo_rendered_camera",
+          "symbol": "X",
+          "timestamp": "2026-09-11T07:16:23.082698+00:00",
+          "token_name": "token_8",
+          "verification": "camera"
+        }
+      ]
+    }
+  ],
+  "expected_failure_tests": [
+    {
+      "run_id": "fec6536c-735a-4185-b710-1924f1807cff",
+      "source_log": "live-fec6536c-735a-4185-b710-1924f1807cff.jsonl",
+      "injected_fault": "camera_unavailable",
+      "rejection_test_passed": true,
+      "verified_placements": 0,
+      "board_after_attempt": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "protocol_checks": [
+        "old_session",
+        "duplicate_frame",
+        "stale_frame",
+        "packet_gap",
+        "changed_target",
+        "hand_removed"
+      ],
+      "failure": {
+        "attempt_id": "ffea14ac3c964656bbe17407504efb7e",
+        "cell": 4,
+        "duration_s": 2.4884562050001477,
+        "event": "pick_place_failed",
+        "reason": "no_fresh_board_camera_image",
+        "symbol": "X",
+        "timestamp": "2026-09-11T07:18:05.102937+00:00",
+        "token_name": "token"
+      }
+    },
+    {
+      "run_id": "e8b40e89-6067-41b5-bb6a-cb422b07541e",
+      "source_log": "live-e8b40e89-6067-41b5-bb6a-cb422b07541e.jsonl",
+      "injected_fault": "grasp_missing",
+      "rejection_test_passed": true,
+      "verified_placements": 0,
+      "board_after_attempt": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "protocol_checks": [
+        "old_session",
+        "duplicate_frame",
+        "stale_frame",
+        "packet_gap",
+        "changed_target",
+        "hand_removed"
+      ],
+      "failure": {
+        "attempt_id": "4ebf3830755b4764b165401e6f84c7bf",
+        "cell": 4,
+        "duration_s": 16.84025882500009,
+        "event": "pick_place_failed",
+        "reason": "grasp_contact_not_confirmed:{'attached': False, 'token_name': 'token', 'contact': True, 'contact_pairs': 1, 'contact_steps_at_attach': 0, 'token_xyz': [0.450137, -0.360008, 0.74351]}, tool=geometry_msgs.msg.Pose(position=geometry_msgs.msg.Point(x=0.4499281367433147, y=-0.36006405707807, z=0.06953260881822645), orientation=geometry_msgs.msg.Quaternion(x=0.9999985884556624, y=-0.0003549972703166108, z=0.001443163659764087, w=0.0007837998928339736))",
+        "symbol": "X",
+        "timestamp": "2026-09-11T07:18:45.937865+00:00",
+        "token_name": "token"
+      }
+    }
+  ],
+  "gripper_fixture": {
+    "initial": {
+      "attached": false,
+      "token_name": "token",
+      "contact": false,
+      "contact_pairs": 0,
+      "contact_steps_at_attach": 0,
+      "token_xyz": [
+        0.3,
+        -3.01342e-20,
+        0.00597526
+      ]
+    },
+    "no_contact": {
+      "attached": false,
+      "token_name": "token",
+      "contact": false,
+      "contact_pairs": 0,
+      "contact_steps_at_attach": 0,
+      "token_xyz": [
+        0.3,
+        -1.32834e-19,
+        0.00599989
+      ]
+    },
+    "attached": {
+      "attached": true,
+      "token_name": "token",
+      "contact": false,
+      "contact_pairs": 0,
+      "contact_steps_at_attach": 3,
+      "token_xyz": [
+        4.2035e-20,
+        -4.23832e-20,
+        0.315634
+      ]
+    },
+    "selection_rejected": {
+      "attached": true,
+      "token_name": "token",
+      "contact": false,
+      "contact_pairs": 0,
+      "contact_steps_at_attach": 3,
+      "token_xyz": [
+        4.2035e-20,
+        -4.23832e-20,
+        0.315634
+      ]
+    },
+    "carried": {
+      "attached": true,
+      "token_name": "token",
+      "contact": false,
+      "contact_pairs": 0,
+      "contact_steps_at_attach": 3,
+      "token_xyz": [
+        0.2,
+        -1.87285e-18,
+        0.584365
+      ]
+    },
+    "released": {
+      "attached": false,
+      "token_name": "token",
+      "contact": false,
+      "contact_pairs": 0,
+      "contact_steps_at_attach": 3,
+      "token_xyz": [
+        0.2,
+        -1.96884e-18,
+        0.00572226
+      ]
+    }
+  },
+  "ui_checks": {
+    "real_webcam_and_mediapipe_opened": true,
+    "swedish_hand_test_opened_and_closed": true,
+    "full_ui_with_rendered_board_camera_opened_and_closed": true,
+    "robot_posts_suppressed_in_ui_smoke_tests": true,
+    "launcher_controls_clipped": false,
+    "desktop_startup_camera_readiness_and_shutdown_verified": true
+  },
+  "remaining_unverified": [
+    "manual pointing through a complete game",
+    "physical robot and gripper",
+    "physical camera calibration",
+    "real 5G integration"
+  ],
+  "scope": "These are selected final simulation validation runs after fixes, not a claim about all development runs or future reliability.",
+  "regressions_fixed": [
+    "simulation result timeout / ROS resource lifetime",
+    "multiple complete JSON snapshots from ign topic -n 1"
+  ],
+  "repeat_commands": [
+    "python -m robotlab.acceptance --game --repeats 2",
+    "python -m robotlab.acceptance --faults"
+  ]
+}

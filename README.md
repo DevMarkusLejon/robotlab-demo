@@ -1,12 +1,76 @@
 # RobotLab demo
 
+## Starta med ett dubbelklick (Windows)
+
+Dubbelklicka på **Starta RobotLab.cmd** i projektmappen, eller på **RobotLab**
+på skrivbordet om genvägen finns. Inga terminalkommandon behövs.
+
+Startfönstret startar automatiskt WSL-simulatorn och väntar på roboten och
+brädkameran innan webcam-fönstret öppnas. Peka på en ruta och håll kvar cirka
+1,2 sekunder. Du spelar röd (X); roboten placerar därefter blå (O).
+Ta bort handen mellan dina drag. Spela tills någon vinner eller det blir oavgjort.
+**Nytt spel** återställer brädet och pjäserna. **Testa pekning utan robotrörelse**
+låter dig kontrollera detektionen separat. Stäng kameran med **Q/Esc** eller kryssknappen.
+Stäng startfönstret för att avsluta både kameran och den egna simulatorn.
+Att stänga startfönstret avbryter även ett pågående simulerat försök.
+
+Vid fel visas ett meddelande. **Öppna loggar** visar underlag för felsökning.
+Startfilen använder den befintliga installationen: Python med webcam-paketen
+och handmodellen samt WSL-distributionen `Ubuntu-22.04` med byggd ROS 2-miljö
+och gripdonsplugin. Den är en startare för den här datorn, inte ett fristående
+installationspaket för andra datorer.
+
 Detta är en ny, hårdvaruoberoende startpunkt för den demo som beskrivs i mejltråden **Projekt i RobotLab?** (5 september 2026). Den innehåller tre-i-rad som en konkret första spel-loop och en kalibrerbar simulerad placering av spelpjäser.
 
-Repo:t utför ingen fysisk robotrörelse, ansluter inte till 5G och antar ingen robotmodell. `robotlab.robot` producerar endast approach-, target- och retract-punkter. Det gör att spel- och kommunikationskontraktet kan provas innan RobotLab och Ericsson har bekräftat robot, gripdon, nätverk och driftmiljö.
+Repo:t utför ingen fysisk robotrörelse och ansluter inte till ett verkligt 5G-nät.
+Speldemon använder en UR5e-referens i Gazebo; den fysiska roboten är inte vald.
+Den enklare hårdvaruoberoende kärnan i `robotlab.robot` finns kvar separat.
+
+## Det nya spelläget
+
+- Ett helt spel med fem röda och fyra blå pjäser och en optimal motspelare.
+- Ett simulerat magasin matar fram en ny pjäs till samma hämtplats. Varje pjäs
+  skapas en gång; befintliga pjäser flyttas endast av robot/gripdon/fysik.
+  Detta är en förenklad dispenser, inte en modell av ett valt fysiskt magasin.
+- Varje drag kräver tre färska kamerabilder med exakt förväntad förändring.
+  Tidigare pjäser måste ligga kvar. Brädet uppdateras först efter verifiering.
+- Gripdonet väljer en namngiven pjäs bara när det är avstängt och lossat.
+  Placerade pjäser finns kvar i MoveIts kollisionsmodell.
+- Handen måste vara stabil och tas bort mellan turerna. Inga drag köas medan
+  roboten arbetar. Fel låser spelet tills scenen startas om.
+- Svensk återkoppling visar grepp, rörelse, kamerakontroll och vinst/oavgjort.
+
+Se [praktiskt handprov](docs/manual-acceptance.md) och
+[öppna beslut för fysisk robot och 5G](docs/integration-open.md).
+Det implementerade gränssnittet beskrivs i [pekningsprotokollet](docs/live-protocol.md).
+
+## Upprepningsbara systemtester (Windows)
+
+Stäng en eventuell RobotLab-session först. Testverktyget startar och avslutar
+sin egen simulator och sparar resultat i `artifacts/acceptance-*.json`.
+
+```text
+python -m robotlab.acceptance --game --repeats 2
+python -m robotlab.acceptance --cells --repeats 3
+python -m robotlab.acceptance --faults
+python -m robotlab.metrics artifacts/live-SESSION-ID.jsonl
+```
+
+Speltestet skickar syntetiska pekobservationer från Windows. Celltestet placerar
+en röd pjäs i varje ruta med ny scen mellan försöken. Feltestet kontrollerar
+stopp vid injicerat kamerabortfall och verkligt utebliven gripkontakt i simuleringen.
+Resultaten skiljer lyckade placeringar från korrekt avvisade felprov.
+Varje körning får egen telemetri i `live-<sessions-id>.jsonl`. Försöks-id kopplar
+samman start, kameraevidens, avslut och tidsåtgång; misslyckade försök räknas
+med i nämnaren. Saknade mätningar visas som saknade, inte som 100 % lyckat.
+Protokollproven skickar även gamla sessioner, dubbletter och för gamla bilder
+genom den riktiga lokala HTTP-bryggan samt gör ett uppehåll i bildflödet.
+Eventuell rapporterad rundturstid gäller loopback, inte ett 5G-nät.
 
 ## Kör
 
-Kräver Python 3.11 eller senare och inga tredjepartspaket.
+Den enklare spel-/HTTP-kärnan kräver Python 3.11 eller senare och inga
+tredjepartspaket. Webcam och ROS-simulering har ytterligare beroenden.
 
 ```text
 python -m unittest discover -s tests -v
@@ -28,7 +92,10 @@ Webcamläget använder MediaPipes förtränade Hand Landmarker-modell. Den anvä
 
 ## Gazebo-simulering
 
-Det finns också en fristående Gazebo Harmonic-värld med en enkel 3-DOF-arm och ett 3×3-bräde. Den är ett konkret nästa steg från webcam-detektion till inspekterbar robotplanering: kör `simulation/gazebo/world.sdf` och styr sedan armen med `simulation/gazebo/play_demo.py`. Se [simuleringsguiden](simulation/gazebo/README.md) för WSL2-kommandon och cellnumrering. Den lokala Windows-miljön har inte Gazebo installerat, så XML och IK är validerade här men själva GUI-körningen behöver Gazebo i WSL2 eller Linux.
+Det finns också en äldre, fristående Gazebo Harmonic-värld med en enkel
+3-DOF-arm och ett 3×3-bräde. Se [simuleringsguiden](simulation/gazebo/README.md).
+Dubbelklicksstartaren använder i stället ROS 2 Humble och Gazebo Fortress i
+WSL2 med officiell UR5e-modell, MoveIt och kameraverifierad plockning.
 
 ## UR5e-referens och säker körkedja
 

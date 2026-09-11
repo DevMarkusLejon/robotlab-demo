@@ -25,13 +25,13 @@ def allow_cup_contact(planner: MoveItPlanner, first='token', second='vacuum_cup'
         raise RuntimeError('cup_contact_permission_failed')
 
 
-def set_token(planner: MoveItPlanner, position, *, attached=False):
+def set_token(planner: MoveItPlanner, position, *, attached=False, name='token'):
     from moveit_msgs.srv import ApplyPlanningScene, GetPlanningScene
     from moveit_msgs.msg import CollisionObject, AttachedCollisionObject, PlanningSceneComponents
     from shape_msgs.msg import SolidPrimitive
     from geometry_msgs.msg import Pose
     obj = CollisionObject()
-    obj.id = 'token'
+    obj.id = name
     obj.header.frame_id = 'vacuum_cup' if attached else 'base_link'
     obj.operation = CollisionObject.ADD
     obj.primitives = [SolidPrimitive(type=SolidPrimitive.CYLINDER, dimensions=[0.012, 0.03])]
@@ -49,7 +49,7 @@ def set_token(planner: MoveItPlanner, position, *, attached=False):
         body.object = obj
         body.touch_links = ['vacuum_cup']
     else:
-        body.object = CollisionObject(id='token', operation=CollisionObject.REMOVE)
+        body.object = CollisionObject(id=name, operation=CollisionObject.REMOVE)
         request.scene.world.collision_objects = [obj]
     request.scene.robot_state.attached_collision_objects = [body]
     if not planner.call(ApplyPlanningScene, '/apply_planning_scene', request).success:
@@ -58,9 +58,9 @@ def set_token(planner: MoveItPlanner, position, *, attached=False):
     query.components.components = (PlanningSceneComponents.ROBOT_STATE_ATTACHED_OBJECTS |
                                    PlanningSceneComponents.WORLD_OBJECT_NAMES)
     scene = planner.call(GetPlanningScene, '/get_planning_scene', query).scene
-    carried = any(body.object.id == 'token' and body.link_name == 'vacuum_cup'
+    carried = any(body.object.id == name and body.link_name == 'vacuum_cup'
                   for body in scene.robot_state.attached_collision_objects)
-    in_world = any(body.id == 'token' for body in scene.world.collision_objects)
+    in_world = any(body.id == name for body in scene.world.collision_objects)
     if carried != attached or in_world == attached:
         raise RuntimeError('token_scene_readback_mismatch')
 

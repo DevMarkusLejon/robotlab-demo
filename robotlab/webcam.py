@@ -334,7 +334,8 @@ def _draw_frame(cv2, frame, rect, state, fingertip, message):
             x = rect.left + (col * 2 + 1) * side // 6
             y = rect.top + (row * 2 + 1) * side // 6
             cv2.putText(frame, symbol, (x - side // 14, y + side // 18),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2.4, (40, 40, 255), 4, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, 2.4,
+                        (40, 40, 255) if symbol == 'X' else (255, 140, 60), 4, cv2.LINE_AA)
     if fingertip is not None:
         cv2.circle(frame, fingertip, 10, (0, 255, 0), -1)
     cv2.putText(frame, "SIMULATION ONLY - Q/Esc quits", (20, 35),
