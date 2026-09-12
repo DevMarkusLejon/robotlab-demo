@@ -69,6 +69,8 @@ class PlacementService:
             deadline = self.clock() + self.workcell.data['camera_timeout_s']
             while self.clock() < deadline:
                 observation = self.camera.observe(max(0.001, deadline-self.clock()))
+                if self.clock() >= deadline:
+                    raise RuntimeError('camera_placement_timeout')
                 result = verifier.update(observation, now_ms=int(self.clock()*1000))
                 if result == 'verified':
                     receipt = VerifiedPlacement(cell, symbol, observation.cells,

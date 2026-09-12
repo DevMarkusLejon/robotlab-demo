@@ -50,6 +50,30 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'command_id_conflict'):
             self.place(cell=3)
 
+    def test_offline_camera_waits_for_coarse_clock_tick(self):
+        ticks = iter([1.0, 1.0, 1.0, 1.0, 1.016])
+        sleeps = []
+        camera = OfflineCamera(self.robot, clock=lambda: next(ticks), sleep=sleeps.append)
+        first = camera.observe(0.1)
+        second = camera.observe(0.1)
+        self.assertEqual((first.timestamp_ms, second.timestamp_ms), (1000, 1016))
+        self.assertEqual(len(sleeps), 1)
+
+    def test_late_camera_result_cannot_commit(self):
+        now = [1.0]
+        from robotlab.board_observer import BoardObservation
+        class LateCamera(OfflineCamera):
+            def observe(inner, timeout):
+                inner.counter += 1
+                now[0] += 0.01 if inner.counter < 4 else 1.0
+                return BoardObservation(str(inner.counter), int(now[0]*1000), tuple(inner.robot.cells))
+        service = PlacementService(self.robot, LateCamera(self.robot), self.w, self.rec,
+                                   clock=lambda: now[0])
+        with self.assertRaisesRegex(RuntimeError, 'camera_placement_timeout'):
+            service.place(session_id=service.session_id, command_id='late', expected_revision=0, cell=4)
+        self.assertEqual(service.revision, 0)
+        self.assertTrue(service.failed)
+
     def test_bad_revision_and_session_before_io(self):
         with self.assertRaisesRegex(ValueError, 'revision_mismatch'):
             self.place(revision=3)

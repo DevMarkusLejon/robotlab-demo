@@ -58,17 +58,30 @@ class OfflineRobot:
 class OfflineCamera:
     source = 'offline_fixture'
 
-    def __init__(self, robot):
+    def __init__(self, robot, *, clock=time.monotonic, sleep=time.sleep):
         self.robot = robot
         self.run_id, self.counter = uuid.uuid4().hex, 0
+        self.clock, self.sleep = clock, sleep
+        self.last_timestamp = -1
 
     def observe(self, timeout):
         if self.robot.fault == 'camera':
             raise RuntimeError('injected_camera_failure')
-        time.sleep(min(0.003, timeout))
+        deadline = self.clock() + timeout
+        # Windows monotonic clocks can have a coarser resolution than sleep.
+        # Wait for a real new timestamp rather than replaying one or inventing it.
+        while True:
+            now = self.clock()
+            if now >= deadline:
+                raise RuntimeError('offline_camera_timeout')
+            timestamp = int(now * 1000)
+            if timestamp > self.last_timestamp:
+                break
+            self.sleep(min(0.003, deadline - now))
+        self.last_timestamp = timestamp
         self.counter += 1
         return BoardObservation(f'{self.run_id}:{self.counter}',
-            int(time.monotonic()*1000), tuple(self.robot.cells))
+            timestamp, tuple(self.robot.cells))
 
     def close(self):
         pass
