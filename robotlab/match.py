@@ -14,7 +14,10 @@ class VerifiedPlacement:
 
 
 class VerifiedMatch:
-    def __init__(self):
+    def __init__(self, *, source='gazebo_rendered_camera'):
+        if source not in ('gazebo_rendered_camera', 'physical_board_camera', 'offline_fixture'):
+            raise ValueError('unsupported_placement_source')
+        self.source = source
         self.board = Board()
         self.used_frames = set()
 
@@ -28,7 +31,7 @@ class VerifiedMatch:
         if (not isinstance(receipt, VerifiedPlacement) or receipt.cell != cell or
                 receipt.symbol != self.board.next_player or
                 tuple(value or '' for value in receipt.cells) != expected.cells or
-                receipt.source != 'gazebo_rendered_camera' or
+                receipt.source != self.source or
                 not receipt.frame_id or receipt.frame_id in self.used_frames or
                 receipt.confirming_frames < 3):
             raise ValueError('placement_receipt_mismatch')

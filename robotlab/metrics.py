@@ -16,7 +16,7 @@ def percentile(values: Iterable[float], fraction: float) -> float | None:
 
 
 def summarize_events(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    rows = list(events)
+    rows = [row for row in events if row.get('source') != 'offline_fixture']
     checked = [row for row in rows if row.get("event") == "trajectory_checked"]
     # Legacy demos emitted this name without a sensor. Do not count those
     # placeholders (or a bare event name) as evidence of object placement.
@@ -28,7 +28,7 @@ def summarize_events(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     attempts = {row['attempt_id']: row for row in rows
                 if row.get('event') == 'pick_place_started' and row.get('attempt_id')}
     camera_attempts = {row.get('attempt_id') for row in verified
-                       if row.get('source') == 'gazebo_rendered_camera' and row.get('confirming_frames', 0) >= 3}
+                       if row.get('source') in ('gazebo_rendered_camera', 'physical_board_camera') and row.get('confirming_frames', 0) >= 3}
     completions = {row['attempt_id']: row for row in rows
                    if row.get('event') == 'pick_place_completed' and row.get('attempt_id') in attempts
                    and row.get('attempt_id') in camera_attempts}

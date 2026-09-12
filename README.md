@@ -1,5 +1,20 @@
 # RobotLab demo
 
+## SMC på labbroboten
+
+En separat SMC-väg finns nu för Markos befintliga robotinstallation.
+Läs [integrationsplan och labbchecklista](docs/smc-integration.md).
+Prova hela kontraktet utan ROS, kamera eller robot:
+
+```text
+python -m robotlab.smc_demo --config config/smc-offline.json --game
+```
+
+Detta är ett deterministiskt **offline-test**, inte fysiksimulering eller
+hårdvaruvalidering. Den befintliga Gazebo-startaren nedan är kvar. SMC-vägen
+har ett separat terminalgränssnitt; pek-UI/5G är ännu inte anslutna till den.
+
+
 ## Starta med ett dubbelklick (Windows)
 
 Dubbelklicka på **Starta RobotLab.cmd** i projektmappen, eller på **RobotLab**
