@@ -197,9 +197,12 @@ class OfflineApp:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--autoplay', action='store_true')
+    parser.add_argument('--fault', choices=('grasp', 'camera', 'motion', 'wrong_cell'))
     args = parser.parse_args()
     window = tk.Tk()
     app = OfflineApp(window)
+    if args.fault:
+        app.fault.set(args.fault)
     if args.autoplay:
         window.after(500, app.autoplay)
     window.mainloop()
