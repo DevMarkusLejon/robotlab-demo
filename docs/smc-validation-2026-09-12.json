@@ -1,0 +1,30 @@
+{
+  "recorded_at": "2026-09-12T17:15:04.404629+00:00",
+  "base_commit": "8140f2fec6fe5bb2b06486ceee0296729983469d",
+  "smc_api_reference": "4efe7bbb00f8e39c72e3a3fd21f2f1f4ded0f0f1",
+  "environment": "Linux-6.18.35-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "unit_tests": {
+    "run": 117,
+    "failed": 0,
+    "skipped": 0
+  },
+  "offline_game": {
+    "source": "offline_fixture",
+    "placements": 9,
+    "camera_success_events": 0,
+    "physical_robot_moves": 0
+  },
+  "negative_cli_checks": {
+    "injected_grasp_failure": "rejected",
+    "incomplete_hardware_configuration": "rejected_before_connection"
+  },
+  "not_executed": [
+    "Full SMC/Pinocchio/RTDE runtime",
+    "Physical robot/gripper",
+    "Physical camera acquisition",
+    "New Gazebo runs",
+    "5G or pointing UI through SMC"
+  ],
+  "scope": "Software contract tests with test doubles; not hardware or physics validation."
+}
